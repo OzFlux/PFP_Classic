@@ -426,8 +426,8 @@ def plot_quickcheck(cf):
     # get the netCDF filename
     ncfilename = qcio.get_infilenamefromcf(cf)
     # get the plot width and height
-    PlotWidth_landscape = float(13)
-    PlotHeight_landscape = float(8)
+    PlotWidth_landscape = float(10)
+    PlotHeight_landscape = float(6.5)
     PlotWidth_portrait = float(5)
     PlotHeight_portrait = float(8)
     # read the netCDF file and return the data structure "ds"
@@ -668,7 +668,7 @@ def plot_quickcheck(cf):
     tsplot(DT_daily,Rain_daily_sum,sub=[6,1,6],colours=Rain_daily_num,ylabel='Rain')
     #fig.show()
     figname='plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_QC_'+'DailyRatios.png'
-    fig.savefig(figname,format='png')
+    fig.savefig(figname,format='png',dpi=300)
     # draw the plot on the screen
     plt.draw()
     # now we do the daily averages of the fluxes and the meteorology
