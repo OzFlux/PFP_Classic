@@ -7,8 +7,8 @@ import subprocess
 import numpy
 import xlwt
 # PFP modules
-import qcio
-import qcutils
+import pfp_io
+import pfp_utils
 
 logger = logging.getLogger("pfp_log")
 

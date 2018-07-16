@@ -20,16 +20,16 @@ if not os.path.exists("./scripts/"):
 # since the scripts directory is there, try importing the modules
 sys.path.append('scripts')
 import cfg
-import qcclim
-import qccpd
-import qcgf
-import qcio
-import qclog
-import qcls
-import qcmpt
-import qcplot
-import qcrp
-import qcutils
+import pfp_clim
+import pfp_cpd
+import pfp_gf
+import pfp_io
+import pfp_log
+import pfp_ls
+import pfp_mpt
+import pfp_plot
+import pfp_rp
+import pfp_utils
 # now check the logfiles and plots directories are present
 dir_list = ["./logfiles/", "./plots/"]
 for item in dir_list:
@@ -54,12 +54,12 @@ for item in dir_list:
 t = time.localtime()
 rundatetime = datetime.datetime(t[0], t[1], t[2], t[3], t[4], t[5]).strftime("%Y%m%d%H%M")
 log_filename = 'pfp_'+rundatetime+'.log'
-logger = qclog.init_logger(logger_name="pfp_log", file_handler=log_filename)
+logger = pfp_log.init_logger(logger_name="pfp_log", file_handler=log_filename)
 
 class qcgui(tk.Tk):
     """
         QC Data Main GUI
-        Used to access read, save, and data processing (qcls) prodecures
+        Used to access read, save, and data processing (pfp_ls) prodecures
 
         Columns: Data levels:
             1:  L1 Raw Data (read excel into NetCDF)
@@ -212,16 +212,16 @@ class qcgui(tk.Tk):
 
     def do_climatology(self,mode="standard"):
         """
-        Calls qcclim.climatology
+        Calls pfp_clim.climatology
         """
         logger.info(' Starting climatology')
         self.do_progress(text='Doing climatology ...')
         if mode=="standard":
             stdname = "controlfiles/standard/climatology.txt"
             if os.path.exists(stdname):
-                cf = qcio.get_controlfilecontents(stdname)
+                cf = pfp_io.get_controlfilecontents(stdname)
                 self.do_progress(text='Opening input file ...')
-                filename = qcio.get_filename_dialog(path='../Sites',title='Choose a netCDF file')
+                filename = pfp_io.get_filename_dialog(path='../Sites',title='Choose a netCDF file')
                 if not os.path.exists(filename):
                     logger.info( " Climatology: no input file chosen")
                     self.do_progress(text='Waiting for input ...')
@@ -233,14 +233,14 @@ class qcgui(tk.Tk):
                 cf["Files"]["out_filename"] = in_filename.replace(".nc","_Climatology.xls")
             else:
                 self.do_progress(text='Loading control file ...')
-                cf = qcio.load_controlfile(path='controlfiles')
+                cf = pfp_io.load_controlfile(path='controlfiles')
                 if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
         else:
             self.do_progress(text='Loading control file ...')
-            cf = qcio.load_controlfile(path='controlfiles')
+            cf = pfp_io.load_controlfile(path='controlfiles')
             if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
         self.do_progress(text='Doing the climatology')
-        qcclim.climatology(cf)
+        pfp_clim.climatology(cf)
         self.do_progress(text='Finished climatology')
         logger.info(' Finished climatology')
         logger.info("")
@@ -261,17 +261,17 @@ class qcgui(tk.Tk):
 
     def do_compare_eddypro(self):
         """
-        Calls qcclim.compare_ep
+        Calls pfp_clim.compare_ep
         Compares the results OzFluxQC (L3) with those from EddyPro (full output).
         """
         self.do_progress(text='Comparing EddyPro and OzFlux results ...')
-        qcclim.compare_eddypro()
+        pfp_clim.compare_eddypro()
         self.do_progress(text='Finished comparing EddyPro and OzFlux')
         logger.info(' Finished comparing EddyPro and OzFlux')
 
     def do_cpd(self,mode="standard"):
         """
-        Calls qccpd.cpd_main
+        Calls pfp_cpd.cpd_main
         Calculate the u* threshold using the Change Point Detection (CPD) method.
         """
         logger.info(' Starting estimation u* threshold using CPD')
@@ -279,9 +279,9 @@ class qcgui(tk.Tk):
         if mode=="standard":
             stdname = "controlfiles/standard/cpd.txt"
             if os.path.exists(stdname):
-                cf = qcio.get_controlfilecontents(stdname)
+                cf = pfp_io.get_controlfilecontents(stdname)
                 self.do_progress(text='Opening input file ...')
-                filename = qcio.get_filename_dialog(path='../Sites',title='Choose a netCDF file')
+                filename = pfp_io.get_filename_dialog(path='../Sites',title='Choose a netCDF file')
                 if not os.path.exists(filename):
                     logger.info( " CPD: no input file chosen")
                     self.do_progress(text='Waiting for input ...')
@@ -293,13 +293,13 @@ class qcgui(tk.Tk):
                 cf["Files"]["out_filename"] = in_filename.replace(".nc","_CPD.xls")
             else:
                 self.do_progress(text='Loading control file ...')
-                cf = qcio.load_controlfile(path='controlfiles')
+                cf = pfp_io.load_controlfile(path='controlfiles')
                 if len(cf)==0:
                     self.do_progress(text='Waiting for input ...')
                     return
         else:
             self.do_progress(text='Loading control file ...')
-            cf = qcio.load_controlfile(path='controlfiles')
+            cf = pfp_io.load_controlfile(path='controlfiles')
             if len(cf)==0:
                 self.do_progress(text='Waiting for input ...')
                 return
@@ -307,7 +307,7 @@ class qcgui(tk.Tk):
         if "Options" not in cf:
             cf["Options"]={}
         cf["Options"]["call_mode"] = "interactive"
-        qccpd.cpd_main(cf)
+        pfp_cpd.cpd_main(cf)
         self.do_progress(text='Finished estimating u* threshold')
         logger.info(' Finished estimating u* threshold')
         logger.info("")
@@ -317,21 +317,21 @@ class qcgui(tk.Tk):
 
     def do_l1qc(self):
         """
-        Calls qcls.l1qc
+        Calls pfp_ls.l1qc
         """
         logger.info(" Starting L1 processing ...")
         self.do_progress(text='Load L1 Control File ...')
-        cf = qcio.load_controlfile(path='controlfiles')
+        cf = pfp_io.load_controlfile(path='controlfiles')
         if len(cf)==0:
             logger.info( " L1: no control file chosen")
             self.do_progress(text='Waiting for input ...')
             return
         self.do_progress(text='Doing L1 ...')
-        ds1 = qcls.l1qc(cf)
+        ds1 = pfp_ls.l1qc(cf)
         if ds1.returncodes["value"] == 0:
-            outfilename = qcio.get_outfilenamefromcf(cf)
-            ncFile = qcio.nc_open_write(outfilename)
-            qcio.nc_write_series(ncFile,ds1)
+            outfilename = pfp_io.get_outfilenamefromcf(cf)
+            ncFile = pfp_io.nc_open_write(outfilename)
+            pfp_io.nc_write_series(ncFile,ds1)
             self.do_progress(text='Finished L1')
             logger.info(' Finished L1')
             logger.info("")
@@ -341,7 +341,7 @@ class qcgui(tk.Tk):
 
     def do_l2qc(self):
         """
-            Call qcls.l2qc function
+            Call pfp_ls.l2qc function
             Performs L2 QA/QC processing on raw data
             Outputs L2 netCDF file to ncData folder
 
@@ -368,42 +368,42 @@ class qcgui(tk.Tk):
             """
         logger.info(" Starting L2 processing ...")
         self.do_progress(text='Load L2 Control File ...')
-        cf = qcio.load_controlfile(path='controlfiles')
+        cf = pfp_io.load_controlfile(path='controlfiles')
         if len(cf)==0:
             logger.info( " L2: no control file chosen")
             self.do_progress(text='Waiting for input ...')
             return
-        infilename = qcio.get_infilenamefromcf(cf)
-        if not qcutils.file_exists(infilename):
+        infilename = pfp_io.get_infilenamefromcf(cf)
+        if not pfp_utils.file_exists(infilename):
             self.do_progress(text='An error occurred, check the console ...')
             return
         self.do_progress(text='Doing L2 QC ...')
-        self.ds1 = qcio.nc_read_series(infilename)
+        self.ds1 = pfp_io.nc_read_series(infilename)
         if len(self.ds1.series.keys())==0:
             self.do_progress(text='An error occurred, check the console ...')
             del self.ds1
             return
         self.update_startenddate(str(self.ds1.series['DateTime']['Data'][0]),
                                  str(self.ds1.series['DateTime']['Data'][-1]))
-        self.ds2 = qcls.l2qc(cf, self.ds1)
+        self.ds2 = pfp_ls.l2qc(cf, self.ds1)
         # put a copy of the config file in self for later use
         self.cf = cf
         logger.info(' Finished L2 QC process')
         self.do_progress(text='Finished L2 QC process')
         self.do_progress(text='Saving L2 QC ...')                     # put up the progress message
-        outfilename = qcio.get_outfilenamefromcf(cf)
+        outfilename = pfp_io.get_outfilenamefromcf(cf)
         if len(outfilename)==0:
             self.do_progress(text='An error occurred, check the console ...')
             return
-        ncFile = qcio.nc_open_write(outfilename)
-        qcio.nc_write_series(ncFile, self.ds2)                                  # save the L2 data
+        ncFile = pfp_io.nc_open_write(outfilename)
+        pfp_io.nc_write_series(ncFile, self.ds2)                                  # save the L2 data
         self.do_progress(text='Finished saving L2 QC data')              # tdo_progressell the user we are done
         logger.info(' Finished saving L2 QC data')
         logger.info("")
 
     def do_l3qc(self):
         """
-            Call qcls.l3qc_sitename function
+            Call pfp_ls.l3qc_sitename function
             Performs L3 Corrections and QA/QC processing on L2 data
             Outputs L3 netCDF file to ncData folder
             Outputs L3 netCDF file to OzFlux folder
@@ -472,16 +472,16 @@ class qcgui(tk.Tk):
                     Variable lists for plot generation
             """
         logger.info(" Starting L3 processing ...")
-        cf = qcio.load_controlfile(path='controlfiles')
+        cf = pfp_io.load_controlfile(path='controlfiles')
         if len(cf) == 0:
             logger.info( " L3: no control file chosen")
             self.do_progress(text='Waiting for input ...')
             return
-        infilename = qcio.get_infilenamefromcf(cf)
-        if not qcutils.file_exists(infilename):
+        infilename = pfp_io.get_infilenamefromcf(cf)
+        if not pfp_utils.file_exists(infilename):
             self.do_progress(text='An error occurred, check the console ...')
             return
-        self.ds2 = qcio.nc_read_series(infilename)
+        self.ds2 = pfp_io.nc_read_series(infilename)
         if len(self.ds2.series.keys())==0:
             self.do_progress(text='An error occurred, check the console ...')
             del self.ds2
@@ -489,7 +489,7 @@ class qcgui(tk.Tk):
         self.update_startenddate(str(self.ds2.series['DateTime']['Data'][0]),
                                  str(self.ds2.series['DateTime']['Data'][-1]))
         self.do_progress(text='Doing L3 QC & Corrections ...')
-        self.ds3 = qcls.l3qc(cf, self.ds2)
+        self.ds3 = pfp_ls.l3qc(cf, self.ds2)
         # put a copy of the config file in self for later use
         self.cf = cf
         self.do_progress(text='Finished L3')
@@ -497,20 +497,20 @@ class qcgui(tk.Tk):
         txtstr = txtstr+self.ds3.globalattributes['site_name'].replace(' ','')
         logger.info(txtstr)
         self.do_progress(text='Saving L3 QC & Corrected NetCDF data ...')       # put up the progress message
-        outfilename = qcio.get_outfilenamefromcf(cf)
+        outfilename = pfp_io.get_outfilenamefromcf(cf)
         if len(outfilename)==0:
             self.do_progress(text='An error occurred, check the console ...')
             return
-        ncFile = qcio.nc_open_write(outfilename)
-        outputlist = qcio.get_outputlistfromcf(cf, 'nc')
-        qcio.nc_write_series(ncFile, self.ds3, outputlist=outputlist)             # save the L3 data
+        ncFile = pfp_io.nc_open_write(outfilename)
+        outputlist = pfp_io.get_outputlistfromcf(cf, 'nc')
+        pfp_io.nc_write_series(ncFile, self.ds3, outputlist=outputlist)             # save the L3 data
         self.do_progress(text='Finished saving L3 QC & Corrected NetCDF data')  # tell the user we are done
         logger.info(' Finished saving L3 QC & Corrected NetCDF data')
         logger.info("")
 
     def do_l4qc(self):
         """
-            Call qcls.l4qc_gapfill function
+            Call pfp_ls.l4qc_gapfill function
             Performs L4 gap filling on L3 met data
             or
             Ingests L4 gap filled fluxes performed in external SOLO-ANN and c
@@ -538,12 +538,12 @@ class qcgui(tk.Tk):
                         available)
             """
         logger.info(" Starting L4 processing ...")
-        cf = qcio.load_controlfile(path='controlfiles')
+        cf = pfp_io.load_controlfile(path='controlfiles')
         if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
-        infilename = qcio.get_infilenamefromcf(cf)
+        infilename = pfp_io.get_infilenamefromcf(cf)
         if len(infilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
-        if not qcutils.file_exists(infilename): self.do_progress(text='An error occurred, check the console ...'); return
-        ds3 = qcio.nc_read_series(infilename)
+        if not pfp_utils.file_exists(infilename): self.do_progress(text='An error occurred, check the console ...'); return
+        ds3 = pfp_io.nc_read_series(infilename)
         if len(ds3.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del ds3; return
         ds3.globalattributes['controlfile_name'] = cf['controlfile_name']
         self.update_startenddate(str(ds3.series['DateTime']['Data'][0]),
@@ -552,7 +552,7 @@ class qcgui(tk.Tk):
         self.do_progress(text='Doing L4 gap filling drivers: '+sitename+' ...')
         if "Options" not in cf: cf["Options"]={}
         cf["Options"]["call_mode"] = "interactive"
-        ds4 = qcls.l4qc(cf,ds3)
+        ds4 = pfp_ls.l4qc(cf,ds3)
         if ds4.returncodes["alternate"]=="quit" or ds4.returncodes["solo"]=="quit":
             self.do_progress(text='Quitting L4: '+sitename)
             logger.info(' Quitting L4: %s', sitename)
@@ -560,32 +560,32 @@ class qcgui(tk.Tk):
             self.do_progress(text='Finished L4: '+sitename)
             logger.info(' Finished L4: %s', sitename)
             self.do_progress(text='Saving L4 gap filled data ...')         # put up the progress message
-            outfilename = qcio.get_outfilenamefromcf(cf)
+            outfilename = pfp_io.get_outfilenamefromcf(cf)
             if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
-            ncFile = qcio.nc_open_write(outfilename)
-            outputlist = qcio.get_outputlistfromcf(cf,'nc')
-            qcio.nc_write_series(ncFile,ds4,outputlist=outputlist)         # save the L4 data
+            ncFile = pfp_io.nc_open_write(outfilename)
+            outputlist = pfp_io.get_outputlistfromcf(cf,'nc')
+            pfp_io.nc_write_series(ncFile,ds4,outputlist=outputlist)         # save the L4 data
             self.do_progress(text='Finished saving L4 gap filled data')    # tell the user we are done
             logger.info(' Finished saving L4 gap filled data')
         logger.info("")
 
     def do_l5qc(self):
         """
-            Call qcls.l5qc function to gap fill the fluxes.
+            Call pfp_ls.l5qc function to gap fill the fluxes.
         """
         logger.info("Starting L5 processing ...")
-        cf = qcio.load_controlfile(path="controlfiles")
+        cf = pfp_io.load_controlfile(path="controlfiles")
         if len(cf) == 0:
             self.do_progress(text="Waiting for input ...")
             return
-        infilename = qcio.get_infilenamefromcf(cf)
+        infilename = pfp_io.get_infilenamefromcf(cf)
         if len(infilename) == 0:
             self.do_progress(text="An error occurred, check the console ...")
             return
-        if not qcutils.file_exists(infilename):
+        if not pfp_utils.file_exists(infilename):
             self.do_progress(text="An error occurred, check the console ...")
             return
-        ds4 = qcio.nc_read_series(infilename)
+        ds4 = pfp_io.nc_read_series(infilename)
         if len(ds4.series.keys()) == 0:
             self.do_progress(text="An error occurred, check the console ...")
             del ds4
@@ -598,7 +598,7 @@ class qcgui(tk.Tk):
         if "Options" not in cf:
             cf["Options"]={}
         cf["Options"]["call_mode"] = "interactive"
-        ds5 = qcls.l5qc(cf, ds4)
+        ds5 = pfp_ls.l5qc(cf, ds4)
         if ds5.returncodes["solo"] == "quit":
             self.do_progress(text="Quitting L5: "+sitename)
             logger.info(" Quitting L5: %s", sitename)
@@ -606,28 +606,28 @@ class qcgui(tk.Tk):
             self.do_progress(text="Finished L5: "+sitename)
             logger.info("Finished L5: %s", sitename)
             self.do_progress(text="Saving L5 gap filled data ...")           # put up the progress message
-            outfilename = qcio.get_outfilenamefromcf(cf)
+            outfilename = pfp_io.get_outfilenamefromcf(cf)
             if len(outfilename)==0:
                 self.do_progress(text="An error occurred, check the console ...")
                 return
-            ncFile = qcio.nc_open_write(outfilename)
-            outputlist = qcio.get_outputlistfromcf(cf, "nc")
-            qcio.nc_write_series(ncFile, ds5, outputlist=outputlist)         # save the L5 data
+            ncFile = pfp_io.nc_open_write(outfilename)
+            outputlist = pfp_io.get_outputlistfromcf(cf, "nc")
+            pfp_io.nc_write_series(ncFile, ds5, outputlist=outputlist)         # save the L5 data
             self.do_progress(text="Finished saving L5 gap filled data")      # tell the user we are done
             logger.info("Finished saving L5 gap filled data")
         logger.info("")
 
     def do_l6qc(self):
         """
-            Call qcls.l6qc function to partition NEE into GPP and ER.
+            Call pfp_ls.l6qc function to partition NEE into GPP and ER.
         """
         logger.info(" Starting L6 processing ...")
-        cf = qcio.load_controlfile(path='controlfiles')
+        cf = pfp_io.load_controlfile(path='controlfiles')
         if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
-        infilename = qcio.get_infilenamefromcf(cf)
+        infilename = pfp_io.get_infilenamefromcf(cf)
         if len(infilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
-        if not qcutils.file_exists(infilename): self.do_progress(text='An error occurred, check the console ...'); return
-        ds5 = qcio.nc_read_series(infilename)
+        if not pfp_utils.file_exists(infilename): self.do_progress(text='An error occurred, check the console ...'); return
+        ds5 = pfp_io.nc_read_series(infilename)
         if len(ds5.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del ds5; return
         ds5.globalattributes['controlfile_name'] = cf['controlfile_name']
         self.update_startenddate(str(ds5.series['DateTime']['Data'][0]),
@@ -636,22 +636,22 @@ class qcgui(tk.Tk):
         self.do_progress(text='Doing L6 partitioning: '+sitename+' ...')
         if "Options" not in cf: cf["Options"]={}
         cf["Options"]["call_mode"] = "interactive"
-        ds6 = qcls.l6qc(cf,ds5)
+        ds6 = pfp_ls.l6qc(cf,ds5)
         self.do_progress(text='Finished L6: '+sitename)
         logger.info("Finished L6: %s", sitename)
         self.do_progress(text='Saving L6 partitioned data ...')           # put up the progress message
-        outfilename = qcio.get_outfilenamefromcf(cf)
+        outfilename = pfp_io.get_outfilenamefromcf(cf)
         if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
-        ncFile = qcio.nc_open_write(outfilename)
-        outputlist = qcio.get_outputlistfromcf(cf,'nc')
-        qcio.nc_write_series(ncFile,ds6,outputlist=outputlist)             # save the L6 data
+        ncFile = pfp_io.nc_open_write(outfilename)
+        outputlist = pfp_io.get_outputlistfromcf(cf,'nc')
+        pfp_io.nc_write_series(ncFile,ds6,outputlist=outputlist)             # save the L6 data
         self.do_progress(text='Finished saving L6 partitioned data')      # tell the user we are done
         logger.info("Finished saving L6 partitioned data")
         logger.info("")
 
     def do_mpt(self,mode="standard"):
         """
-        Calls qcmpt.mpt_main
+        Calls pfp_mpt.mpt_main
         Calculate the u* threshold using the Moving Point Threshold (MPT) method.
         """
         logger.info(' Starting estimation u* threshold using MPT')
@@ -659,9 +659,9 @@ class qcgui(tk.Tk):
         if mode=="standard":
             stdname = "controlfiles/standard/mpt.txt"
             if os.path.exists(stdname):
-                cf = qcio.get_controlfilecontents(stdname)
+                cf = pfp_io.get_controlfilecontents(stdname)
                 self.do_progress(text='Opening input file ...')
-                filename = qcio.get_filename_dialog(path='../Sites',title='Choose a netCDF file')
+                filename = pfp_io.get_filename_dialog(path='../Sites',title='Choose a netCDF file')
                 if not os.path.exists(filename):
                     logger.info( " MPT: no input file chosen")
                     self.do_progress(text='Waiting for input ...')
@@ -673,13 +673,13 @@ class qcgui(tk.Tk):
                 cf["Files"]["out_filename"] = in_filename.replace(".nc","_MPT.xls")
             else:
                 self.do_progress(text='Loading control file ...')
-                cf = qcio.load_controlfile(path='controlfiles')
+                cf = pfp_io.load_controlfile(path='controlfiles')
                 if len(cf)==0:
                     self.do_progress(text='Waiting for input ...')
                     return
         else:
             self.do_progress(text='Loading control file ...')
-            cf = qcio.load_controlfile(path='controlfiles')
+            cf = pfp_io.load_controlfile(path='controlfiles')
             if len(cf)==0:
                 self.do_progress(text='Waiting for input ...')
                 return
@@ -687,21 +687,21 @@ class qcgui(tk.Tk):
         if "Options" not in cf:
             cf["Options"]={}
         cf["Options"]["call_mode"] = "interactive"
-        qcmpt.mpt_main(cf)
+        pfp_mpt.mpt_main(cf)
         self.do_progress(text='Finished estimating u* threshold (MPT)')
         logger.info(' Finished estimating u* threshold (MPT)')
         logger.info("")
 
     def do_nc2ep_biomet(self):
-        """ Calls qcio.ep_biomet_write_csv. """
+        """ Calls pfp_io.ep_biomet_write_csv. """
         logger.info(' Starting conversion to EddyPro biomet file')
         self.do_progress(text='Load control file ...')
-        cf = qcio.load_controlfile(path='controlfiles')
+        cf = pfp_io.load_controlfile(path='controlfiles')
         if len(cf)==0:
             self.do_progress(text='Waiting for input ...')
             return
         self.do_progress(text='Converting nc to EddyPro biomet CSV ...')
-        return_code = qcio.ep_biomet_write_csv(cf)
+        return_code = pfp_io.ep_biomet_write_csv(cf)
         if return_code==0:
             self.do_progress(text='An error occurred, check the console ...')
             return
@@ -711,82 +711,82 @@ class qcgui(tk.Tk):
             logger.info("")
 
     def do_nc2fn(self):
-        """ Calls qcio.fn_write_csv. """
+        """ Calls pfp_io.fn_write_csv. """
         logger.info(' Starting conversion to FluxNet CSV file')
         self.do_progress(text='Load control file ...')
-        cf = qcio.load_controlfile(path='controlfiles')
+        cf = pfp_io.load_controlfile(path='controlfiles')
         if len(cf) == 0:
             self.do_progress(text='Waiting for input ...')
             return
         self.do_progress(text='Converting nc to FluxNet CSV ...')
-        qcio.fn_write_csv(cf)
+        pfp_io.fn_write_csv(cf)
         logger.info(' Finished conversion')
         self.do_progress(text='Finished conversion')
         logger.info("")
 
     def do_nc2reddyproc(self):
-        """ Calls qcio.reddyproc_write_csv."""
+        """ Calls pfp_io.reddyproc_write_csv."""
         logger.info(' Starting conversion to REddyProc CSV file')
         self.do_progress(text="Load control file ...")
-        cf = qcio.load_controlfile(path='controlfiles')
+        cf = pfp_io.load_controlfile(path='controlfiles')
         if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
         self.do_progress(text='Converting nc to REddyProc CSV ...')
-        qcio.reddyproc_write_csv(cf)
+        pfp_io.reddyproc_write_csv(cf)
         logger.info(' Finished conversion')
         self.do_progress(text='Finished conversion')
         logger.info("")
 
     def do_nc2smap(self):
-        """ Calls qcio.smap_write_csv. """
+        """ Calls pfp_io.smap_write_csv. """
         logger.info(' Starting conversion to SMAP CSV file')
         self.do_progress(text='Load control file ...')
-        cf = qcio.load_controlfile(path='controlfiles')
+        cf = pfp_io.load_controlfile(path='controlfiles')
         if len(cf) == 0:
             self.do_progress(text='Waiting for input ...')
             return
         self.do_progress(text='Converting nc to SMAP CSV ...')
-        qcio.smap_write_csv(cf)
+        pfp_io.smap_write_csv(cf)
         logger.info(' Finished conversion')
         self.do_progress(text='Finished conversion')
         logger.info("")
 
     def do_nc2xls(self):
-        """ Calls qcio.nc_2xls. """
+        """ Calls pfp_io.nc_2xls. """
         logger.info(" Starting conversion to Excel file")
         self.do_progress(text="Choosing netCDF file ...")
-        ncfilename = qcio.get_filename_dialog(path="../Sites", title="Choose a netCDF file")
+        ncfilename = pfp_io.get_filename_dialog(path="../Sites", title="Choose a netCDF file")
         if len(ncfilename)==0:
             self.do_progress(text="Waiting for input ...")
             return
         self.do_progress(text="Converting netCDF file to Excel file")
-        qcio.nc_2xls(ncfilename, outputlist=None)
+        pfp_io.nc_2xls(ncfilename, outputlist=None)
         self.do_progress(text="Finished converting netCDF file")
         logger.info(" Finished converting netCDF file")
         logger.info("")
 
     def do_ncconcat(self):
         """
-        Calls qcio.nc_concatenate
+        Calls pfp_io.nc_concatenate
         """
         logger.info(' Starting concatenation of netCDF files')
         self.do_progress(text='Loading control file ...')
-        cf = qcio.load_controlfile(path='controlfiles')
+        cf = pfp_io.load_controlfile(path='controlfiles')
         if len(cf) == 0:
             self.do_progress(text='Waiting for input ...')
             return
         self.do_progress(text='Concatenating files')
-        qcio.nc_concatenate(cf)
+        pfp_io.nc_concatenate(cf)
         self.do_progress(text='Finished concatenating files')
         logger.info(' Finished concatenating files')
         logger.info("")
 
     def do_ncsplit(self):
         """
-        Calls qcio.nc_split
+        Calls pfp_io.nc_split
         """
         logger.info(' Starting split of netCDF file')
         self.do_progress(text='Splitting file')
-        qcio.nc_split()
+        pfp_io.nc_split()
         self.do_progress(text='Finished splitting file')
         logger.info(' Finished splitting file')
         logger.info("")
@@ -798,8 +798,8 @@ class qcgui(tk.Tk):
         if mode=="standard":
             stdname = "controlfiles/standard/fingerprint.txt"
             if os.path.exists(stdname):
-                cf = qcio.get_controlfilecontents(stdname)
-                filename = qcio.get_filename_dialog(path='../Sites',title='Choose a netCDF file')
+                cf = pfp_io.get_controlfilecontents(stdname)
+                filename = pfp_io.get_filename_dialog(path='../Sites',title='Choose a netCDF file')
                 if len(filename)==0 or not os.path.exists(filename):
                     self.do_progress(text='Waiting for input ...'); return
                 if "Files" not in dir(cf): cf["Files"] = {}
@@ -807,17 +807,17 @@ class qcgui(tk.Tk):
                 cf["Files"]["in_filename"] = ntpath.split(filename)[1]
             else:
                 self.do_progress(text='Loading control file ...')
-                cf = qcio.load_controlfile(path='controlfiles')
+                cf = pfp_io.load_controlfile(path='controlfiles')
                 if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
         else:
             self.do_progress(text='Loading control file ...')
-            cf = qcio.load_controlfile(path='controlfiles')
+            cf = pfp_io.load_controlfile(path='controlfiles')
             if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
         if "Options" not in cf:
             cf["Options"]={}
         cf["Options"]["call_mode"] = "interactive"
         self.do_progress(text='Plotting fingerprint ...')
-        qcplot.plot_fingerprint(cf)
+        pfp_plot.plot_fingerprint(cf)
         self.do_progress(text='Finished plotting fingerprint')
         logger.info(' Finished plotting fingerprint')
         logger.info("")
@@ -828,8 +828,8 @@ class qcgui(tk.Tk):
         if mode=="standard":
             stdname = "controlfiles/standard/fluxnet.txt"
             if os.path.exists(stdname):
-                cf = qcio.get_controlfilecontents(stdname)
-                filename = qcio.get_filename_dialog(path='../Sites',title='Choose a netCDF file')
+                cf = pfp_io.get_controlfilecontents(stdname)
+                filename = pfp_io.get_filename_dialog(path='../Sites',title='Choose a netCDF file')
                 if len(filename)==0 or not os.path.exists(filename):
                     self.do_progress(text='Waiting for input ...'); return
                 if "Files" not in dir(cf): cf["Files"] = {}
@@ -837,14 +837,14 @@ class qcgui(tk.Tk):
                 cf["Files"]["in_filename"] = ntpath.split(filename)[1]
             else:
                 self.do_progress(text='Loading control file ...')
-                cf = qcio.load_controlfile(path='controlfiles')
+                cf = pfp_io.load_controlfile(path='controlfiles')
                 if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
         else:
             self.do_progress(text='Loading control file ...')
-            cf = qcio.load_controlfile(path='controlfiles')
+            cf = pfp_io.load_controlfile(path='controlfiles')
             if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
         self.do_progress(text='Plotting FluxNet style plots ...')
-        qcplot.plot_fluxnet(cf)
+        pfp_plot.plot_fluxnet(cf)
         self.do_progress(text='Finished FluxNet plotting')
         logger.info(' Finished FluxNet plotting')
 
@@ -853,17 +853,17 @@ class qcgui(tk.Tk):
         self.do_progress(text='Loading control file ...')
         stdname = "controlfiles/standard/quickcheck.txt"
         if os.path.exists(stdname):
-            cf = qcio.get_controlfilecontents(stdname)
-            filename = qcio.get_filename_dialog(path='../Sites',title='Choose an input file')
+            cf = pfp_io.get_controlfilecontents(stdname)
+            filename = pfp_io.get_filename_dialog(path='../Sites',title='Choose an input file')
             if len(filename)==0: self.do_progress(text='Waiting for input ...'); return
             if "Files" not in dir(cf): cf["Files"] = {}
             cf["Files"]["file_path"] = ntpath.split(filename)[0]+"/"
             cf["Files"]["in_filename"] = ntpath.split(filename)[1]
         else:
-            cf = qcio.load_controlfile(path='controlfiles')
+            cf = pfp_io.load_controlfile(path='controlfiles')
         if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
         self.do_progress(text='Plotting quickcheck ...')
-        qcplot.plot_quickcheck(cf)
+        pfp_plot.plot_quickcheck(cf)
         self.do_progress(text='Finished plotting quickcheck')
         logger.info(' Finished plotting quickcheck')
 
@@ -875,21 +875,21 @@ class qcgui(tk.Tk):
             If L2 Control File not loaded, requires control file selection.
             """
         if 'ds1' not in dir(self) or 'ds2' not in dir(self):
-            cf = qcio.load_controlfile(path='controlfiles')
+            cf = pfp_io.load_controlfile(path='controlfiles')
             if len(cf) == 0:
                 self.do_progress(text='Waiting for input ...')
                 return
-            l1filename = qcio.get_infilenamefromcf(cf)
-            if not qcutils.file_exists(l1filename):
+            l1filename = pfp_io.get_infilenamefromcf(cf)
+            if not pfp_utils.file_exists(l1filename):
                 self.do_progress(text='An error occurred, check the console ...')
                 return
-            ds1 = qcio.nc_read_series(l1filename)
+            ds1 = pfp_io.nc_read_series(l1filename)
             if len(ds1.series.keys()) == 0:
                 self.do_progress(text='An error occurred, check the console ...')
                 del ds1
                 return
-            l2filename = qcio.get_outfilenamefromcf(cf)
-            ds2 = qcio.nc_read_series(l2filename)
+            l2filename = pfp_io.get_outfilenamefromcf(cf)
+            ds2 = pfp_io.nc_read_series(l2filename)
             if len(ds2.series.keys()) == 0:
                 self.do_progress(text='An error occurred, check the console ...')
                 del ds2
@@ -901,23 +901,23 @@ class qcgui(tk.Tk):
             ds2 = self.ds2
         self.do_progress(text='Plotting L1 & L2 QC ...')
         cfname = ds2.globalattributes['controlfile_name']
-        cf = qcio.get_controlfilecontents(cfname)
+        cf = pfp_io.get_controlfilecontents(cfname)
         for nFig in cf['Plots'].keys():
-            si = qcutils.GetDateIndex(ds1.series['DateTime']['Data'], self.plotstartEntry.get(),
+            si = pfp_utils.GetDateIndex(ds1.series['DateTime']['Data'], self.plotstartEntry.get(),
                                       ts=ds1.globalattributes['time_step'], default=0, match='exact')
-            ei = qcutils.GetDateIndex(ds1.series['DateTime']['Data'], self.plotendEntry.get(),
+            ei = pfp_utils.GetDateIndex(ds1.series['DateTime']['Data'], self.plotendEntry.get(),
                                       ts=ds1.globalattributes['time_step'], default=-1, match='exact')
             plt_cf = cf['Plots'][str(nFig)]
             if 'Type' in plt_cf.keys():
                 if str(plt_cf['Type']).lower() == 'xy':
                     self.do_progress(text='Plotting L1 and L2 XY ...')
-                    qcplot.plotxy(cf, nFig, plt_cf, ds1, ds2, si, ei)
+                    pfp_plot.plotxy(cf, nFig, plt_cf, ds1, ds2, si, ei)
                 else:
                     self.do_progress(text='Plotting L1 and L2 QC ...')
-                    qcplot.plottimeseries(cf, nFig, ds1, ds2, si, ei)
+                    pfp_plot.plottimeseries(cf, nFig, ds1, ds2, si, ei)
             else:
                 self.do_progress(text='Plotting L1 and L2 QC ...')
-                qcplot.plottimeseries(cf, nFig, ds1, ds2, si, ei)
+                pfp_plot.plottimeseries(cf, nFig, ds1, ds2, si, ei)
         self.do_progress(text='Finished plotting L1 and L2')
         logger.info(' Finished plotting L1 and L2, check the GUI')
 
@@ -929,12 +929,12 @@ class qcgui(tk.Tk):
             If L3 Control File not loaded, requires control file selection.
             """
         if 'ds3' not in dir(self):
-            cf = qcio.load_controlfile(path='controlfiles')
+            cf = pfp_io.load_controlfile(path='controlfiles')
             if len(cf) == 0:
                 self.do_progress(text='Waiting for input ...')
                 return
-            l3filename = qcio.get_outfilenamefromcf(cf)
-            ds3 = qcio.nc_read_series(l3filename)
+            l3filename = pfp_io.get_outfilenamefromcf(cf)
+            ds3 = pfp_io.nc_read_series(l3filename)
             if len(ds3.series.keys()) == 0:
                 self.do_progress(text='An error occurred, check the console ...')
                 del ds3
@@ -945,23 +945,23 @@ class qcgui(tk.Tk):
             ds3 = self.ds3
         self.do_progress(text='Plotting L3 QC ...')
         cfname = ds3.globalattributes['controlfile_name']
-        cf = qcio.get_controlfilecontents(cfname)
+        cf = pfp_io.get_controlfilecontents(cfname)
         for nFig in cf['Plots'].keys():
-            si = qcutils.GetDateIndex(ds3.series['DateTime']['Data'], self.plotstartEntry.get(),
+            si = pfp_utils.GetDateIndex(ds3.series['DateTime']['Data'], self.plotstartEntry.get(),
                                       ts=ds3.globalattributes['time_step'], default=0, match='exact')
-            ei = qcutils.GetDateIndex(ds3.series['DateTime']['Data'], self.plotendEntry.get(),
+            ei = pfp_utils.GetDateIndex(ds3.series['DateTime']['Data'], self.plotendEntry.get(),
                                       ts=ds3.globalattributes['time_step'], default=-1, match='exact')
             plt_cf = cf['Plots'][str(nFig)]
             if 'Type' in plt_cf.keys():
                 if str(plt_cf['Type']).lower() =='xy':
                     self.do_progress(text='Plotting L3 XY ...')
-                    qcplot.plotxy(cf, nFig, plt_cf, ds3, ds3, si, ei)
+                    pfp_plot.plotxy(cf, nFig, plt_cf, ds3, ds3, si, ei)
                 else:
                     self.do_progress(text='Plotting L3 QC ...')
-                    qcplot.plottimeseries(cf, nFig, ds3, ds3, si, ei)
+                    pfp_plot.plottimeseries(cf, nFig, ds3, ds3, si, ei)
             else:
                 self.do_progress(text='Plotting L3 QC ...')
-                qcplot.plottimeseries(cf, nFig, ds3, ds3, si, ei)
+                pfp_plot.plottimeseries(cf, nFig, ds3, ds3, si, ei)
         self.do_progress(text='Finished plotting L3')
         logger.info(' Finished plotting L3, check the GUI')
 
@@ -974,21 +974,21 @@ class qcgui(tk.Tk):
             If L4 Control File not loaded, requires control file selection.
             """
         if 'ds3' not in locals() or 'ds4' not in locals():
-            cf = qcio.load_controlfile(path='controlfiles')
+            cf = pfp_io.load_controlfile(path='controlfiles')
             if len(cf) == 0:
                 self.do_progress(text='Waiting for input ...')
                 return
-            l3filename = qcio.get_infilenamefromcf(cf)
-            if not qcutils.file_exists(l3filename):
+            l3filename = pfp_io.get_infilenamefromcf(cf)
+            if not pfp_utils.file_exists(l3filename):
                 self.do_progress(text='An error occurred, check the console ...')
                 return
-            ds3 = qcio.nc_read_series(l3filename)
+            ds3 = pfp_io.nc_read_series(l3filename)
             if len(ds3.series.keys())==0:
                 self.do_progress(text='An error occurred, check the console ...')
                 del ds3
                 return
-            l4filename = qcio.get_outfilenamefromcf(cf)
-            ds4 = qcio.nc_read_series(l4filename)
+            l4filename = pfp_io.get_outfilenamefromcf(cf)
+            ds4 = pfp_io.nc_read_series(l4filename)
             if len(ds4.series.keys()) == 0:
                 self.do_progress(text='An error occurred, check the console ...')
                 del ds4
@@ -997,13 +997,13 @@ class qcgui(tk.Tk):
                                      str(ds3.series['DateTime']['Data'][-1]))
         self.do_progress(text='Plotting L3 and L4 QC ...')
         cfname = ds4.globalattributes['controlfile_name']
-        cf = qcio.get_controlfilecontents(cfname)
+        cf = pfp_io.get_controlfilecontents(cfname)
         for nFig in cf['Plots'].keys():
-            si = qcutils.GetDateIndex(ds3.series['DateTime']['Data'], self.plotstartEntry.get(),
+            si = pfp_utils.GetDateIndex(ds3.series['DateTime']['Data'], self.plotstartEntry.get(),
                                       ts=ds3.globalattributes['time_step'], default=0, match='exact')
-            ei = qcutils.GetDateIndex(ds3.series['DateTime']['Data'], self.plotendEntry.get(),
+            ei = pfp_utils.GetDateIndex(ds3.series['DateTime']['Data'], self.plotendEntry.get(),
                                       ts=ds3.globalattributes['time_step'], default=-1, match='exact')
-            qcplot.plottimeseries(cf, nFig, ds3, ds4, si, ei)
+            pfp_plot.plottimeseries(cf, nFig, ds3, ds4, si, ei)
         self.do_progress(text='Finished plotting L4')
         logger.info(' Finished plotting L4, check the GUI')
 
@@ -1017,21 +1017,21 @@ class qcgui(tk.Tk):
         """
             Plot L6 summary.
         """
-        cf = qcio.load_controlfile(path='controlfiles')
+        cf = pfp_io.load_controlfile(path='controlfiles')
         if len(cf)==0:
             self.do_progress(text='Waiting for input ...')
             return
         if "Options" not in cf: cf["Options"]={}
         cf["Options"]["call_mode"] = "interactive"
-        l6filename = qcio.get_outfilenamefromcf(cf)
-        if not qcutils.file_exists(l6filename): self.do_progress(text='An error occurred, check the console ...'); return
-        ds6 = qcio.nc_read_series(l6filename)
+        l6filename = pfp_io.get_outfilenamefromcf(cf)
+        if not pfp_utils.file_exists(l6filename): self.do_progress(text='An error occurred, check the console ...'); return
+        ds6 = pfp_io.nc_read_series(l6filename)
         if len(ds6.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del ds6; return
         self.update_startenddate(str(ds6.series['DateTime']['Data'][0]),
                                  str(ds6.series['DateTime']['Data'][-1]))
         self.do_progress(text='Plotting L6 summary ...')
-        qcgf.ImportSeries(cf,ds6)
-        qcrp.L6_summary(cf,ds6)
+        pfp_gf.ImportSeries(cf,ds6)
+        pfp_rp.L6_summary(cf,ds6)
         self.do_progress(text='Finished plotting L6 summary')
         logger.info(' Finished plotting L6 summary, check the GUI')
 
@@ -1065,17 +1065,17 @@ class qcgui(tk.Tk):
         # check that we have a copy of the control file in self
         if not hasattr(self, "cf"):
             # load a control file if we don't
-            self.cf = qcio.load_controlfile(path="controlfiles")
+            self.cf = pfp_io.load_controlfile(path="controlfiles")
             if len(self.cf) == 0:
                 logger.info( " No control file chosen")
                 self.do_progress(text="Waiting for input ...")
                 return
         self.do_progress(text="Exporting L2 NetCDF -> Excel ...")                     # put up the progress message
         # get the output filename
-        outfilename = qcio.get_outfilenamefromcf(self.cf)
+        outfilename = pfp_io.get_outfilenamefromcf(self.cf)
         # get the output list
-        outputlist = qcio.get_outputlistfromcf(self.cf, "xl")
-        qcio.nc_2xls(outfilename, outputlist=outputlist)
+        outputlist = pfp_io.get_outputlistfromcf(self.cf, "xl")
+        pfp_io.nc_2xls(outfilename, outputlist=outputlist)
         # delete the control file attribute
         delattr(self, "cf")
         self.do_progress(text="Finished L2 Data Export")              # tell the user we are done
@@ -1091,17 +1091,17 @@ class qcgui(tk.Tk):
         # check that we have a copy of the control file in self
         if not hasattr(self, "cf"):
             # load a control file if we don't
-            self.cf = qcio.load_controlfile(path="controlfiles")
+            self.cf = pfp_io.load_controlfile(path="controlfiles")
             if len(self.cf) == 0:
                 logger.info( " No control file chosen")
                 self.do_progress(text="Waiting for input ...")
                 return
         self.do_progress(text="Exporting L3 NetCDF -> Excel ...")                     # put up the progress message
         # get the output filename
-        outfilename = qcio.get_outfilenamefromcf(self.cf)
+        outfilename = pfp_io.get_outfilenamefromcf(self.cf)
         # get the output list
-        outputlist = qcio.get_outputlistfromcf(self.cf, "xl")
-        qcio.nc_2xls(outfilename, outputlist=outputlist)
+        outputlist = pfp_io.get_outputlistfromcf(self.cf, "xl")
+        pfp_io.nc_2xls(outfilename, outputlist=outputlist)
         # delete the control file attribute
         delattr(self, "cf")
         self.do_progress(text="Finished L3 Data Export")              # tell the user we are done
@@ -1109,16 +1109,16 @@ class qcgui(tk.Tk):
 
     def do_xl2nc(self):
         """
-        Calls qcio.xl2nc
+        Calls pfp_io.xl2nc
         """
         logger.info(" Starting L1 processing ...")
         self.do_progress(text='Loading control file ...')
-        cf = qcio.load_controlfile(path='controlfiles')
+        cf = pfp_io.load_controlfile(path='controlfiles')
         if len(cf)==0:
             self.do_progress(text='Waiting for input ...')
             return
         self.do_progress(text='Reading Excel file & writing to netCDF')
-        rcode = qcio.xl2nc(cf, "L1")
+        rcode = pfp_io.xl2nc(cf, "L1")
         if rcode==1:
             self.do_progress(text='Finished writing to netCDF ...')
             logger.info(' Finished writing to netCDF ...')

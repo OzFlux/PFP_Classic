@@ -88,7 +88,7 @@ def CheckQCFlags(ds):
     Purpose:
      Make sure that all values of -9999 in a data series have a non-zero QC flag value.
     Usage:
-     qcutils.CheckQCFlags(ds)
+     pfp_utils.CheckQCFlags(ds)
     Author: PRI
     Date: August 2014
     """
@@ -152,7 +152,7 @@ def CheckUnits(ds, label, units, convert_units=False):
     Purpose:
      General units checking and conversion.
     Usage:
-     qcutils.CheckUnits(ds,label,units,convert_units=True)
+     pfp_utils.CheckUnits(ds,label,units,convert_units=True)
      where ds is a data structure
            label (string) is the label of the series for which the units
                           are to be checked
@@ -300,7 +300,7 @@ def convert_units_func(ds, variable, new_units, mode="quiet"):
      Generic routine for changing units.
      Nothing is done if the original units are the same as the requested units.
     Usage:
-     new_data = qcutils.convert_units_func(old_data,old_units,new_units)
+     new_data = pfp_utils.convert_units_func(old_data,old_units,new_units)
      where old_data is a 1D array of data in the original units
            old_units are the units of the original data
            new_units are the units of the new data
@@ -374,7 +374,7 @@ def convert_units_co2(ds, variable, new_units):
       mg/m2/s to umol/m2/s
       mgCO2/m2/s to umol/m2/s
     Usage:
-     new_data = qcutils.convert_units_co2(ds, variable, new_units)
+     new_data = pfp_utils.convert_units_co2(ds, variable, new_units)
       where ds is a data structure
             variable (dictionary) is a variable dictionary
             new_units (string) is the new units
@@ -589,7 +589,7 @@ def convert_units_h2o(ds, variable, new_units):
       g/m3 to mmol/mol
       mmol/mol to g/m3
     Usage:
-     new_data = qcutils.convert_units_h2o(ds, variable, new_units)
+     new_data = pfp_utils.convert_units_h2o(ds, variable, new_units)
       where ds is a data structure
             variable (dictionary) is a variable dictionary
             new_units (string) is the new units
@@ -624,9 +624,9 @@ def convert_units_t(ds, var_in, new_units):
       C to K
       K to C
     Usage:
-     new_data = qcutils.convert_units_t(ds, variable, new_units)
+     new_data = pfp_utils.convert_units_t(ds, variable, new_units)
       where ds is a data structure
-            variable is a variable dictionary (qcutils.GetVariable())
+            variable is a variable dictionary (pfp_utils.GetVariable())
             new_units (string) is the new units
     Author: PRI
     Date: January 2016
@@ -653,9 +653,9 @@ def convert_units_ps(ds, var_in, new_units):
       Pa to kPa
       hPa to kPa
     Usage:
-     new_data = qcutils.convert_units_ps(ds, variable, new_units)
+     new_data = pfp_utils.convert_units_ps(ds, variable, new_units)
       where ds is a data structure
-            variable is a variable dictionary (qcutils.GetVariable())
+            variable is a variable dictionary (pfp_utils.GetVariable())
             new_units (string) is the new units
     Author: PRI
     Date: February 2018
@@ -678,7 +678,7 @@ def convert_anglestring(anglestring):
     Purpose:
      Attempt to convert an angle string to a float.
     Usage:
-     a = qcutils.convert_anglestring(astr)
+     a = pfp_utils.convert_anglestring(astr)
      Acceptable input formats:
       astr = '''34 12' 24" S'''
       astr = '''34 12 24S'''
@@ -810,9 +810,9 @@ def CreateSeries(ds,Label,Data,Flag,Attr):
      it implements a consistent method for creating series in the data structure.  Direct
      writes to the contents of the data structure are discouraged (unless PRI wrote the code:=P).
     Usage:
-     Fsd,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd")
+     Fsd,flag,attr = pfp_utils.GetSeriesasMA(ds,"Fsd")
       ... do something to Fsd here ...
-     qcutils.CreateSeries(ds,"Fsd",Fsd,flag,attr)
+     pfp_utils.CreateSeries(ds,"Fsd",Fsd,flag,attr)
     Author: PRI
     Date: Back in the day
     """
@@ -892,11 +892,11 @@ def CreateVariable(ds,variable):
      it implements a consistent method for creating series in the data structure.  Direct
      writes to the contents of the data structure are discouraged (unless PRI wrote the code:=P).
     Usage:
-     Fsd = qcutils.GetVariable(ds,"Fsd")
+     Fsd = pfp_utils.GetVariable(ds,"Fsd")
       ... do something to Fsd here ...
       ... and don't forget to update the QC flag ...
       ... and the attributes ...
-     qcutils.CreateVariable(ds,Fsd)
+     pfp_utils.CreateVariable(ds,Fsd)
     Author: PRI
     Date: September 2016
     """
@@ -929,7 +929,7 @@ def file_exists(filename,mode="verbose"):
 def find_nearest_value(array, value):
     """
     Purpose:
-     qcutils.bisection() gives the left bound of the interval of array containing
+     pfp_utils.bisection() gives the left bound of the interval of array containing
      value, this function gives the index of the closest value.
     """
     i = bisection(array, value)
@@ -952,7 +952,7 @@ def FindIndicesOfBInA(a,b):
      dropped and hence only 1 index will be returned for each value
      in b.
     Usage:
-     indices = qcutils.FindIndicesOfBInA(a,b)
+     indices = pfp_utils.FindIndicesOfBInA(a,b)
      where a is a list of Python datetime objects
            b is a list of Python datetime objects
            indices is a list of indices in b where the elements of b
@@ -1106,7 +1106,7 @@ def FixTimeStep(ds,fixtimestepmethod="round"):
     Purpose:
      Fix problems with the time stamp.
     Useage:
-     qcutils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
+     pfp_utils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
     Author: PRI
     Date: April 2013
     Modified:
@@ -1251,7 +1251,7 @@ def GetDateIndex(ldt,date,ts=30,default=0,match='exact'):
     Purpose:
      Return the index of a date/datetime string in an array of datetime objects
     Usage:
-     si = qcutils.GetDateIndex(ldt,date_str,ts=30,default=0,match='exact')
+     si = pfp_utils.GetDateIndex(ldt,date_str,ts=30,default=0,match='exact')
     where
      ldt      - array of datetime objects
      date_str - a date or date/time string in a format dateutils can parse
@@ -1513,7 +1513,7 @@ def GetSeriesasMA(ds,ThisOne,si=0,ei=-1,mode="truncate"):
     Purpose:
      Returns a data series and the QC flag series from the data structure.
     Usage:
-     data,flag,attr = qcutils.GetSeriesasMA(ds,label,si=0,ei=-1)
+     data,flag,attr = pfp_utils.GetSeriesasMA(ds,label,si=0,ei=-1)
     where the arguments are;
       ds    - the data structure (dict)
       label - label of the data series in ds (string)
@@ -1528,8 +1528,8 @@ def GetSeriesasMA(ds,ThisOne,si=0,ei=-1,mode="truncate"):
     Example:
      The code snippet below will return the incoming shortwave data values
      (Fsd) and the associated QC flag (f) as numpy masked arrays;
-      ds = qcio.nc_read_series("HowardSprings_2011_L3.nc")
-      Fsd,f,a = qcutils.GetSeriesasMA(ds,"Fsd")
+      ds = pfp_io.nc_read_series("HowardSprings_2011_L3.nc")
+      Fsd,f,a = pfp_utils.GetSeriesasMA(ds,"Fsd")
     Author: PRI
     """
     Series,Flag,Attr = GetSeries(ds,ThisOne,si=si,ei=ei,mode=mode)
@@ -1541,7 +1541,7 @@ def GetVariable(ds, label, start=0, end=-1, mode="truncate", out_type="ma"):
     Purpose:
      Returns a data variable from the data structure as a dictionary.
     Usage:
-     data,flag,attr = qcutils.GetSeriesasMA(ds,label,si=0,ei=-1)
+     data,flag,attr = pfp_utils.GetSeriesasMA(ds,label,si=0,ei=-1)
     where the arguments are;
       ds    - the data structure (dict)
       label - label of the data variable in ds (string)
@@ -1556,8 +1556,8 @@ def GetVariable(ds, label, start=0, end=-1, mode="truncate", out_type="ma"):
     Example:
      The code snippet below will return the incoming shortwave data values
      (Fsd), the associated QC flag and the variable attributes;
-      ds = qcio.nc_read_series("HowardSprings_2011_L3.nc")
-      Fsd = qcutils.GetSeriesAsDict(ds,"Fsd")
+      ds = pfp_io.nc_read_series("HowardSprings_2011_L3.nc")
+      Fsd = pfp_utils.GetSeriesAsDict(ds,"Fsd")
     Author: PRI
     """
     nrecs = int(ds.globalattributes["nc_nrecs"])
@@ -1581,7 +1581,7 @@ def GetUnitsFromds(ds, ThisOne):
 def get_cfsection(cf,series='',mode='quiet'):
     '''
     Find the section in the control file that contains an entry for the series "series".
-    USEAGE:  section = qcutils.get_cfsection(cf,series=<series_name>)
+    USEAGE:  section = pfp_utils.get_cfsection(cf,series=<series_name>)
     INPUT:   cf            - a control file object (from ConfigObj)
              <series_name> - the name of the series (string)
     RETURNS: section       - the name of the section containing an entry for <series_name> (string)
@@ -1639,7 +1639,7 @@ def get_datetimefromnctime(ds,time,time_units):
     Purpose:
      Create a series of datetime objects from the time read from a netCDF file.
     Usage:
-     qcutils.get_datetimefromnctime(ds,time,time_units)
+     pfp_utils.get_datetimefromnctime(ds,time,time_units)
     Side effects:
      Creates a Python datetime series in the data structure
     Author: PRI
@@ -1769,14 +1769,14 @@ def get_keyvaluefromcf(cf,sections,key,default=None,mode="quiet"):
     Purpose:
      General return a keyword value from a control file.
     Usage:
-     keyval = qcutils.get_keyvaluefromcf(cf,sections,key,default=default)
+     keyval = pfp_utils.get_keyvaluefromcf(cf,sections,key,default=default)
      where
       cf is a control file object from ConfigObj
       sections is a list of sections and nested sub-sections to search
       key is the keyword
       default is a default value
     Example:
-     ncOutFileName = qcutils.get_keyvaluefromcf(cf,["Files","Out"],"ncFileName",default="")
+     ncOutFileName = pfp_utils.get_keyvaluefromcf(cf,["Files","Out"],"ncFileName",default="")
      The example above will return the value for ncFileName from the ["Files"]["Out"] sub-section
      in the control file.
     Author: PRI
@@ -1812,7 +1812,7 @@ def get_label_list_from_cf(cf):
     Purpose:
      Returns a list of variable labels from a control file.
     Usage:
-     label_list = qcutils.get_label_list_from_cf(cf)
+     label_list = pfp_utils.get_label_list_from_cf(cf)
      where cf is a control file object
            label_list is a list of variable labels referenced in the control file.
     """
@@ -1961,7 +1961,7 @@ def get_timestep(ds):
     Purpose:
      Return an array of time steps in seconds between records
     Useage:
-     dt = qcutils.get_timestep(ds)
+     dt = pfp_utils.get_timestep(ds)
     Author: PRI
     Date: February 2015
     """
@@ -1996,7 +1996,7 @@ def get_UTCfromlocaltime(ds):
      Creates a UTC datetime series in the data structure from the
      local datetime series.
     Usage:
-     ldt_UTC = qcutils.get_UTCfromlocaltime(ds)
+     ldt_UTC = pfp_utils.get_UTCfromlocaltime(ds)
     Assumptions:
      No daylight savings used in the local datetime
     Author: PRI
@@ -2039,7 +2039,7 @@ def get_xldatefromdatetime(ds):
      Returns a list of xldatetime (floating point number represent decimal days
      since 00:00 1/1/1900) from a list of Python datetimes
     Usage:
-     qcutils.get_xldatefromdatetime(ds)
+     pfp_utils.get_xldatefromdatetime(ds)
     Assumptions:
      The Excel datetime series ("xlDateTime") exists in the data structure ds.
     Author: PRI
@@ -2075,7 +2075,7 @@ def get_ymdhmsfromdatetime(ds):
      the input data structure and the results are written back to the
      data structure.
     Usage:
-     qcutils.get_ymdhmsfromdatetime(ds)
+     pfp_utils.get_ymdhmsfromdatetime(ds)
     Assumptions:
      None
     Author: PRI
@@ -2105,7 +2105,7 @@ def get_ymdhmsfromxldate(ds):
         Gets year, month, day, hour, and if available seconds, from
         excel-formatted Timestamp
 
-        Usage qcts.get_ymdhmsfromxldate(ds)
+        Usage pfp_ts.get_ymdhmsfromxldate(ds)
         cf: control file
         ds: data structure
         """
@@ -2152,7 +2152,7 @@ def linear_function(B,x):
     Purpose:
      Linear function for use with orthogonal distance regression.
     Usage:
-     linear = scipy.odr.Model(qcutils.linear_function)
+     linear = scipy.odr.Model(pfp_utils.linear_function)
      where B is a list of slope and offset values
            x is an array of x values
     """
@@ -2163,7 +2163,7 @@ def MakeAttributeDictionary(**kwargs):
     Purpose:
      Make an attribute dictionary.
     Usage:
-     attr_new = qcutils.MakeAttributeDictionary(long_name = "some string",attr_exist)
+     attr_new = pfp_utils.MakeAttributeDictionary(long_name = "some string",attr_exist)
      where long_name is an attribute to be written to the new attribute dictionary
            attr_exist is an existing attribute dictionary
     Author: PRI
@@ -2289,7 +2289,7 @@ def parse_rangecheck_limits(s):
      from a variable attribute without resorting to Python's eval statement.
      And as a bonus, we will do some error checking ...
     Usage:
-     rangecheck_limit_list = qcutils.parse_rangecheck_limits(s)
+     rangecheck_limit_list = pfp_utils.parse_rangecheck_limits(s)
      where s is the input string
            rangecheck_limits_list is the returned list
     Side effects:
@@ -2375,11 +2375,11 @@ def polyval(p,x):
     -------
     >>> x = numpy.array([1,2,3])
     >>> p = numpy.array([2,0])
-    >>> qcutils.polyval(p,x)
+    >>> pfp_utils.polyval(p,x)
         array([2,4,6])
     >>> y = numpy.array([1,c.missing_value,3])
     >>> y = numpy.ma.masked_where(y==c.missing_value,y)
-    >>> qcutils.polyval(p,y)
+    >>> pfp_utils.polyval(p,y)
     masked_array(data = [2 -- 6],
                  mask = [False True False],
                  fill_value = 999999)
@@ -2418,7 +2418,7 @@ def round_datetime(ds,mode="nearest_timestep"):
     Purpose:
      Round the series of Python datetimes to the nearest time based on mode
     Usage:
-     qcutils.round_datetime(ds,mode=mode)
+     pfp_utils.round_datetime(ds,mode=mode)
      where;
       mode = "nearest_second" rounds to the nearesy second
       mode = "nearest_timestep" rounds to the nearest time step

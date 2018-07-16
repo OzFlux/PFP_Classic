@@ -6,7 +6,7 @@ import dateutil
 import numpy
 # PFP modules
 import meteorologicalfunctions as mf
-import qcutils
+import pfp_utils
 
 logger = logging.getLogger("pfp_log")
 
@@ -20,7 +20,7 @@ def AhfromRH(ds,Ah_out,RH_in,Ta_in):
      The calculated absolute humidity is created as a new series in the
      data structure.
     Usage:
-     qcfunc.AhfromRH(ds,"Ah_HMP_2m","RH_HMP_2m","Ta_HMP_2m")
+     pfp_func.AhfromRH(ds,"Ah_HMP_2m","RH_HMP_2m","Ta_HMP_2m")
     Author: PRI
     Date: September 2015
     """
@@ -36,14 +36,14 @@ def AhfromRH(ds,Ah_out,RH_in,Ta_in):
         msg = " AhfromRH: Output series "+Ah_out+" already exists, skipping ..."
         logger.error(msg)
         return 0
-    RH_data,RH_flag,RH_attr = qcutils.GetSeriesasMA(ds,RH_in)
-    Ta_data,Ta_flag,Ta_attr = qcutils.GetSeriesasMA(ds,Ta_in)
+    RH_data,RH_flag,RH_attr = pfp_utils.GetSeriesasMA(ds,RH_in)
+    Ta_data,Ta_flag,Ta_attr = pfp_utils.GetSeriesasMA(ds,Ta_in)
     Ah_data = mf.absolutehumidityfromRH(Ta_data,RH_data)
-    Ah_attr = qcutils.MakeAttributeDictionary(long_name="Absolute humidity calculated from "+RH_in+" and "+Ta_in,
+    Ah_attr = pfp_utils.MakeAttributeDictionary(long_name="Absolute humidity calculated from "+RH_in+" and "+Ta_in,
                                               height=RH_attr["height"],
                                               units="g/m3")
     flag = numpy.where(numpy.ma.getmaskarray(Ah_data)==True,ones,zeros)
-    qcutils.CreateSeries(ds,Ah_out,Ah_data,flag,Ah_attr)
+    pfp_utils.CreateSeries(ds,Ah_out,Ah_data,flag,Ah_attr)
     return 1
 
 def AhfromMR(ds,Ah_out,MR_in,Ta_in,ps_in):
@@ -56,7 +56,7 @@ def AhfromMR(ds,Ah_out,MR_in,Ta_in,ps_in):
      The calculated absolute humidity is created as a new series in the
      data structure.
     Usage:
-     qcfunc.AhfromMR(ds,"Ah_IRGA_Av","H2O_IRGA_Av","Ta_HMP_2m","ps")
+     pfp_func.AhfromMR(ds,"Ah_IRGA_Av","H2O_IRGA_Av","Ta_HMP_2m","ps")
     Author: PRI
     Date: September 2015
     """
@@ -72,16 +72,16 @@ def AhfromMR(ds,Ah_out,MR_in,Ta_in,ps_in):
         msg = " AhfromMR: Output series "+Ah_out+" already exists, skipping ..."
         logger.error(msg)
         return 0
-    MR_data,MR_flag,MR_attr = qcutils.GetSeriesasMA(ds,MR_in)
-    Ta_data,Ta_flag,Ta_attr = qcutils.GetSeriesasMA(ds,Ta_in)
-    ps_data,ps_flag,ps_attr = qcutils.GetSeriesasMA(ds,ps_in)
+    MR_data,MR_flag,MR_attr = pfp_utils.GetSeriesasMA(ds,MR_in)
+    Ta_data,Ta_flag,Ta_attr = pfp_utils.GetSeriesasMA(ds,Ta_in)
+    ps_data,ps_flag,ps_attr = pfp_utils.GetSeriesasMA(ds,ps_in)
     Ah_data = mf.h2o_gpm3frommmolpmol(MR_data,Ta_data,ps_data)
     long_name = "Absolute humidity calculated from "+MR_in+", "+Ta_in+" and "+ps_in
-    Ah_attr = qcutils.MakeAttributeDictionary(long_name=long_name,
+    Ah_attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,
                                               height=MR_attr["height"],
                                               units="g/m3")
     flag = numpy.where(numpy.ma.getmaskarray(Ah_data)==True,ones,zeros)
-    qcutils.CreateSeries(ds,Ah_out,Ah_data,flag,Ah_attr)
+    pfp_utils.CreateSeries(ds,Ah_out,Ah_data,flag,Ah_attr)
     return 1
 
 def ConvertK2C(ds, T_in, T_out):
@@ -89,14 +89,14 @@ def ConvertK2C(ds, T_in, T_out):
     Purpose:
      Function to convert temperature from K to C.
     Usage:
-     qcfunc.ConvertK2C(ds, T_in, T_out)
+     pfp_func.ConvertK2C(ds, T_in, T_out)
     Author: PRI
     Date: February 2018
     """
-    var_in = qcutils.GetVariable(ds, T_in)
-    var_out = qcutils.convert_units_func(ds, var_in, "C", mode="quiet")
+    var_in = pfp_utils.GetVariable(ds, T_in)
+    var_out = pfp_utils.convert_units_func(ds, var_in, "C", mode="quiet")
     var_out["Label"] = T_out
-    qcutils.CreateVariable(ds, var_out)
+    pfp_utils.CreateVariable(ds, var_out)
     return 1
 
 def ConvertPa2kPa(ds, ps_in, ps_out):
@@ -104,20 +104,20 @@ def ConvertPa2kPa(ds, ps_in, ps_out):
     Purpose:
      Function to convert pressure from Pa to kPa.
     Usage:
-     qcfunc.ConvertPa2kPa(ds, ps_in, ps_out)
+     pfp_func.ConvertPa2kPa(ds, ps_in, ps_out)
     Author: PRI
     Date: February 2018
     """
-    var_in = qcutils.GetVariable(ds, ps_in)
-    var_out = qcutils.convert_units_func(ds, var_in, "kPa", mode="quiet")
+    var_in = pfp_utils.GetVariable(ds, ps_in)
+    var_out = pfp_utils.convert_units_func(ds, var_in, "kPa", mode="quiet")
     var_out["Label"] = ps_out
-    qcutils.CreateVariable(ds, var_out)
+    pfp_utils.CreateVariable(ds, var_out)
     return 1
 
 def DateTimeFromDoY(ds,Year_in,DoY_in,Hdh_in):
-    year,f,a = qcutils.GetSeriesasMA(ds,Year_in)
-    doy,f,a = qcutils.GetSeriesasMA(ds,DoY_in)
-    hdh,f,a = qcutils.GetSeriesasMA(ds,Hdh_in)
+    year,f,a = pfp_utils.GetSeriesasMA(ds,Year_in)
+    doy,f,a = pfp_utils.GetSeriesasMA(ds,DoY_in)
+    hdh,f,a = pfp_utils.GetSeriesasMA(ds,Hdh_in)
     idx = numpy.ma.where((numpy.ma.getmaskarray(year)==False)&
                          (numpy.ma.getmaskarray(doy)==False)&
                          (numpy.ma.getmaskarray(hdh)==False))[0]
@@ -224,14 +224,14 @@ def MRfromRH(ds, MR_out, RH_in, Ta_in, ps_in):
         msg = " MRfromRH: Output series "+MR_out+" already exists, skipping ..."
         logger.error(msg)
         return 0
-    RH_data,RH_flag,RH_attr = qcutils.GetSeriesasMA(ds, RH_in)
-    Ta_data,Ta_flag,Ta_attr = qcutils.GetSeriesasMA(ds, Ta_in)
+    RH_data,RH_flag,RH_attr = pfp_utils.GetSeriesasMA(ds, RH_in)
+    Ta_data,Ta_flag,Ta_attr = pfp_utils.GetSeriesasMA(ds, Ta_in)
     Ah_data = mf.absolutehumidityfromRH(Ta_data, RH_data)
-    ps_data,ps_flag,ps_attr = qcutils.GetSeriesasMA(ds, ps_in)
+    ps_data,ps_flag,ps_attr = pfp_utils.GetSeriesasMA(ds, ps_in)
     MR_data = mf.h2o_mmolpmolfromgpm3(Ah_data, Ta_data, ps_data)
-    MR_attr = qcutils.MakeAttributeDictionary(long_name="H2O mixing ratio calculated from "+RH_in+", "+Ta_in+" and "+ps_in,
+    MR_attr = pfp_utils.MakeAttributeDictionary(long_name="H2O mixing ratio calculated from "+RH_in+", "+Ta_in+" and "+ps_in,
                                               height=RH_attr["height"],
                                               units="mmol/mol")
     flag = numpy.where(numpy.ma.getmaskarray(MR_data)==True,ones,zeros)
-    qcutils.CreateSeries(ds, MR_out, MR_data, flag, MR_attr)
+    pfp_utils.CreateSeries(ds, MR_out, MR_data, flag, MR_attr)
     return 1

@@ -24,10 +24,10 @@ import xlsxwriter
 import cfg
 import constants as c
 import meteorologicalfunctions as mf
-import qcck
-import qcfunc
-import qcts
-import qcutils
+import pfp_ck
+import pfp_func
+import pfp_ts
+import pfp_utils
 
 logger = logging.getLogger("pfp_log")
 
@@ -51,7 +51,7 @@ def convert_v27tov28():
     if "time_zone" not in ds.globalattributes.keys():
         for gattr in ["site_name","SiteName"]:
             if gattr in ds.globalattributes.keys():
-                time_zone,found = qcutils.get_timezone(ds.globalattributes[gattr],prompt="yes")
+                time_zone,found = pfp_utils.get_timezone(ds.globalattributes[gattr],prompt="yes")
         ds.globalattributes["time_zone"] = time_zone
     # add the "missing_value" attribute if it is not present
     for ThisOne in ds.series.keys():
@@ -88,7 +88,7 @@ def copy_datastructure(cf,ds_in):
     # if the L4 file does exist ...
     if os.path.exists(ct_filename):
         # check to see if the user wants to use it
-        if qcutils.get_keyvaluefromcf(cf,["Options"],"UseExistingOutFile",default="No")!='Yes':
+        if pfp_utils.get_keyvaluefromcf(cf,["Options"],"UseExistingOutFile",default="No")!='Yes':
             # if the user doesn't want to use the existing L4 data then create
             # the L4 data structure as a copy of the L3 data structure
             ds_out = copy.deepcopy(ds_in)
@@ -108,8 +108,8 @@ def copy_datastructure(cf,ds_in):
             sd_out = str(dt_out[0])
             ed_out = str(dt_out[-1])
             # get the start and end indices based on the start and end dates
-            si = qcutils.GetDateIndex(dt_out,sd_file,ts=ts,default=0,match='exact')
-            ei = qcutils.GetDateIndex(dt_out,ed_file,ts=ts,default=-1,match='exact')
+            si = pfp_utils.GetDateIndex(dt_out,sd_file,ts=ts,default=0,match='exact')
+            ei = pfp_utils.GetDateIndex(dt_out,ed_file,ts=ts,default=-1,match='exact')
             # now replace parts of ds_out with the data read from file
             for ThisOne in ds_file.series.keys():
                 # check to see if the L4 series exists in the L3 data
@@ -167,12 +167,12 @@ def csv_read_parse_cf(cf):
         info["csv_filename"] = csv_filename
 
     # get the header row, first data row and units row
-    opt = qcutils.get_keyvaluefromcf(cf,["Files"],"in_firstdatarow",default=2)
+    opt = pfp_utils.get_keyvaluefromcf(cf,["Files"],"in_firstdatarow",default=2)
     info["first_data_row"] = int(opt)
     info["skip_header"] = info["first_data_row"]-1
-    opt = qcutils.get_keyvaluefromcf(cf,["Files"],"in_headerrow",default=1)
+    opt = pfp_utils.get_keyvaluefromcf(cf,["Files"],"in_headerrow",default=1)
     info["header_row"] = int(opt)
-    opt = qcutils.get_keyvaluefromcf(cf,["Files"],"in_unitsrow",default=-1)
+    opt = pfp_utils.get_keyvaluefromcf(cf,["Files"],"in_unitsrow",default=-1)
     info["units_row"] = int(opt)
     # set the delimiters
     info["delimiters"] = [",", "\t"]
@@ -200,7 +200,7 @@ def csv_read_parse_cf(cf):
     csv_varnames = {}
     for item in cf["Variables"].keys():
         if "csv" in cf["Variables"][item].keys():
-            opt = qcutils.get_keyvaluefromcf(cf, ["Variables", item, "csv"], "name", default="")
+            opt = pfp_utils.get_keyvaluefromcf(cf, ["Variables", item, "csv"], "name", default="")
             if opt in info["header_line"]:
                 csv_varnames[item] = str(opt)
             else:
@@ -281,13 +281,13 @@ def csv_read_series(cf):
         # make the attribute dictionary ...
         attr = {}
         variable["Attr"] = copy.deepcopy(attr)
-        qcutils.CreateVariable(ds, variable)
+        pfp_utils.CreateVariable(ds, variable)
     # call the function given in the control file to convert the date/time string to a datetime object
     # NOTE: the function being called needs to deal with missing date values and empty lines
     function_string = cf["Variables"]["DateTime"]["Function"]["func"]
     function_name = function_string.split("(")[0]
     function_args = function_string.split("(")[1].replace(")","").split(",")
-    result = getattr(qcfunc,function_name)(ds, *function_args)
+    result = getattr(pfp_func,function_name)(ds, *function_args)
     # set some global attributes
     ds.globalattributes['featureType'] = 'timeseries'
     ds.globalattributes['csv_filename'] = info["csv_filename"]
@@ -358,29 +358,29 @@ def read_eddypro_full(csvname):
     ds.globalattributes["nc_nrecs"] = nRecs
     ds.series['DateTime'] = {}
     ds.series['DateTime']['Data'] = adatetime
-    qcutils.round_datetime(ds,mode="nearest_timestep")
-    qcutils.get_ymdhmsfromdatetime(ds)
+    pfp_utils.round_datetime(ds,mode="nearest_timestep")
+    pfp_utils.get_ymdhmsfromdatetime(ds)
 
     variable = {"Label":"ustar"}
     variable["Data"] = numpy.array(us_data_list,dtype=numpy.float64)
     variable["Flag"] = numpy.array(us_flag_list,dtype=numpy.int32)
-    variable["Attr"] = qcutils.MakeAttributeDictionary()
-    qcutils.CreateVariable(ds, variable)
+    variable["Attr"] = pfp_utils.MakeAttributeDictionary()
+    pfp_utils.CreateVariable(ds, variable)
     variable = {"Label":"Fh"}
     variable["Data"] = numpy.array(Fh_data_list,dtype=numpy.float64)
     variable["Flag"] = numpy.array(Fh_flag_list,dtype=numpy.int32)
-    variable["Attr"] = qcutils.MakeAttributeDictionary()
-    qcutils.CreateVariable(ds, variable)
+    variable["Attr"] = pfp_utils.MakeAttributeDictionary()
+    pfp_utils.CreateVariable(ds, variable)
     variable = {"Label":"Fe"}
     variable["Data"] = numpy.array(Fe_data_list,dtype=numpy.float64)
     variable["Flag"] = numpy.array(Fe_flag_list,dtype=numpy.int32)
-    variable["Attr"] = qcutils.MakeAttributeDictionary()
-    qcutils.CreateVariable(ds, variable)
+    variable["Attr"] = pfp_utils.MakeAttributeDictionary()
+    pfp_utils.CreateVariable(ds, variable)
     variable = {"Label":"Fc"}
     variable["Data"] = numpy.array(Fc_data_list,dtype=numpy.float64)
     variable["Flag"] = numpy.array(Fc_flag_list,dtype=numpy.int32)
-    variable["Attr"] = qcutils.MakeAttributeDictionary()
-    qcutils.CreateVariable(ds, variable)
+    variable["Attr"] = pfp_utils.MakeAttributeDictionary()
+    pfp_utils.CreateVariable(ds, variable)
 
     return ds
 
@@ -410,12 +410,12 @@ def reddyproc_write_csv(cf):
     # get the start and end indices for whole days
     start_date = dt[0]
     end_date = dt[-1]
-    si = qcutils.GetDateIndex(dt,str(start_date),ts=ts,default=0,match='startnextday')
-    ei = qcutils.GetDateIndex(dt,str(end_date),ts=ts,default=len(dt)-1,match='endpreviousday')
+    si = pfp_utils.GetDateIndex(dt,str(start_date),ts=ts,default=0,match='startnextday')
+    ei = pfp_utils.GetDateIndex(dt,str(end_date),ts=ts,default=len(dt)-1,match='endpreviousday')
     # get the date and time data
-    Year,flag,attr = qcutils.GetSeries(ds,'Year',si=si,ei=ei)
-    Ddd,flag,attr = qcutils.GetSeries(ds,'Ddd',si=si,ei=ei)
-    Hhh,flag,attr = qcutils.GetSeries(ds,'Hdh',si=si,ei=ei)
+    Year,flag,attr = pfp_utils.GetSeries(ds,'Year',si=si,ei=ei)
+    Ddd,flag,attr = pfp_utils.GetSeries(ds,'Ddd',si=si,ei=ei)
+    Hhh,flag,attr = pfp_utils.GetSeries(ds,'Hdh',si=si,ei=ei)
     # get the data
     data = OrderedDict()
     for label in cf["Variables"].keys():
@@ -428,7 +428,7 @@ def reddyproc_write_csv(cf):
             logger.error("Series "+ncname+" not in netCDF file, skipping ...")
             series_list.remove(series)
             continue
-        d,f,a = qcutils.GetSeries(ds,ncname,si=si,ei=ei)
+        d,f,a = pfp_utils.GetSeries(ds,ncname,si=si,ei=ei)
         data[series]["Data"] = d
         data[series]["Flag"] = f
         data[series]["Attr"] = a
@@ -494,13 +494,13 @@ def reddyproc_write_csv(cf):
 def smap_datetodatadictionary(ds,data_dict,nperday,ndays,si,ei):
     ldt = ds.series["DateTime"]["Data"][si:ei+1]
     # do the months
-    month_1d,f,a = qcutils.GetSeries(ds,"Month",si=si,ei=ei)
+    month_1d,f,a = pfp_utils.GetSeries(ds,"Month",si=si,ei=ei)
     data_dict["Mo"] = {}
     data_dict["Mo"]["data"] = numpy.reshape(month_1d,[ndays,nperday])[:,0]
     data_dict["Mo"]["fmt"] = "0"
     # do the days
     data_dict["Day"] = {}
-    day_1d,f,a = qcutils.GetSeries(ds,"Day",si=si,ei=ei)
+    day_1d,f,a = pfp_utils.GetSeries(ds,"Day",si=si,ei=ei)
     data_dict["Day"]["data"] = numpy.reshape(day_1d,[ndays,nperday])[:,0]
     data_dict["Day"]["fmt"] = "0"
     # day of the year
@@ -511,7 +511,7 @@ def smap_datetodatadictionary(ds,data_dict,nperday,ndays,si,ei):
 
 def smap_docarbonfluxes(cf,ds,smap_label,si,ei):
     ncname = cf["Variables"][smap_label]["ncname"]
-    data,flag,attr = qcutils.GetSeriesasMA(ds,ncname,si=si,ei=ei)
+    data,flag,attr = pfp_utils.GetSeriesasMA(ds,ncname,si=si,ei=ei)
     data = data*12.01*1800/1E6
     data = numpy.ma.filled(data,float(-9999))
     return data,flag
@@ -519,8 +519,8 @@ def smap_docarbonfluxes(cf,ds,smap_label,si,ei):
 def smap_donetshortwave(ds,smap_label,si,ei):
     ts = int(ds.globalattributes["time_step"])
     # do the net shortwave radiation
-    Fsd,Fsd_flag,a = qcutils.GetSeriesasMA(ds,"Fsd",si=si,ei=ei)
-    Fsu,Fsu_flag,a = qcutils.GetSeriesasMA(ds,"Fsu",si=si,ei=ei)
+    Fsd,Fsd_flag,a = pfp_utils.GetSeriesasMA(ds,"Fsd",si=si,ei=ei)
+    Fsu,Fsu_flag,a = pfp_utils.GetSeriesasMA(ds,"Fsu",si=si,ei=ei)
     # get the net shortwave radiation and convert to MJ/m2/day at the same time
     Fnsw = ((Fsd - Fsu)*ts*60)/1E6
     # now get the QC flag
@@ -529,14 +529,14 @@ def smap_donetshortwave(ds,smap_label,si,ei):
     return Fnsw,Fnsw_flag
 
 def smap_dopressure(ds,smap_label,si,ei):
-    ps,ps_flag,attr = qcutils.GetSeriesasMA(ds,"ps",si=si,ei=ei)
+    ps,ps_flag,attr = pfp_utils.GetSeriesasMA(ds,"ps",si=si,ei=ei)
     ps = ps/float(1000)
     ps = numpy.ma.filled(ps,float(-9999))
     return ps,ps_flag
 
 def smap_doshortwave(ds,smap_label,si,ei):
     ts = int(ds.globalattributes["time_step"])
-    Fsd,Fsd_flag,a = qcutils.GetSeriesasMA(ds,"Fsd",si=si,ei=ei)
+    Fsd,Fsd_flag,a = pfp_utils.GetSeriesasMA(ds,"Fsd",si=si,ei=ei)
     Fsd = (Fsd*ts*60)/1E6
     Fsd = numpy.ma.filled(Fsd,float(-9999))
     return Fsd,Fsd_flag
@@ -607,8 +607,8 @@ def smap_write_csv(cf):
         year_index = numpy.append(year_index,year_index[-1]+1)
         sdate = dt[max([0,year_index[0]])]
         edate = dt[min([year_index[-1],nRecs-1])]
-        si = qcutils.GetDateIndex(dt,str(sdate),ts=ts,default=0,match="startnextday")
-        ei = qcutils.GetDateIndex(dt,str(edate),ts=ts,default=nRecs-1,match="endpreviousday")
+        si = pfp_utils.GetDateIndex(dt,str(sdate),ts=ts,default=0,match="startnextday")
+        ei = pfp_utils.GetDateIndex(dt,str(edate),ts=ts,default=nRecs-1,match="endpreviousday")
         data_dict["DateTime"] = dt[si:ei+1]
         logger.info(" Writing "+str(data_dict["DateTime"][0])+" to "+ str(data_dict["DateTime"][-1]))
         ndays = len(data_dict["DateTime"])/nperday
@@ -633,7 +633,7 @@ def smap_write_csv(cf):
             elif smap_label in ["GPP","NEE","Reco"]:
                 data,flag = smap_docarbonfluxes(cf,ds,smap_label,si,ei)
             else:
-                data,flag,attr = qcutils.GetSeries(ds,cfvars[smap_label]["ncname"],si=si,ei=ei)
+                data,flag,attr = pfp_utils.GetSeries(ds,cfvars[smap_label]["ncname"],si=si,ei=ei)
             smap_updatedatadictionary(cfvars,data_dict,data,flag,smap_label,nperday,ndays)
         # now loop over the days and write the data out
         for i in range(ndays):
@@ -673,7 +673,7 @@ def smap_writeheaders(cf,csvfile):
 def xl2nc(cf,InLevel):
     # get the data series from the Excel file
     in_filename = get_infilenamefromcf(cf)
-    if not qcutils.file_exists(in_filename,mode="quiet"):
+    if not pfp_utils.file_exists(in_filename,mode="quiet"):
         msg = " Input file "+in_filename+" not found ..."
         logger.error(msg)
         return 0
@@ -682,23 +682,23 @@ def xl2nc(cf,InLevel):
         ds = csv_read_series(cf)
         if ds==0: return 0
         # get a series of Excel datetime from the Python datetime objects
-        qcutils.get_xldatefromdatetime(ds)
+        pfp_utils.get_xldatefromdatetime(ds)
     else:
         ds = xl_read_series(cf)
         if ds==0: return 0
         # get a series of Python datetime objects from the Excel datetime
-        qcutils.get_datetimefromxldate(ds)
+        pfp_utils.get_datetimefromxldate(ds)
     # get the netCDF attributes from the control file
-    qcts.do_attributes(cf,ds)
+    pfp_ts.do_attributes(cf,ds)
     # round the Python datetime to the nearest second
-    qcutils.round_datetime(ds,mode="nearest_second")
+    pfp_utils.round_datetime(ds,mode="nearest_second")
     #check for gaps in the Python datetime series and fix if present
-    fixtimestepmethod = qcutils.get_keyvaluefromcf(cf,["options"],"FixTimeStepMethod",default="round")
-    if qcutils.CheckTimeStep(ds): qcutils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
+    fixtimestepmethod = pfp_utils.get_keyvaluefromcf(cf,["options"],"FixTimeStepMethod",default="round")
+    if pfp_utils.CheckTimeStep(ds): pfp_utils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
     # recalculate the Excel datetime
-    qcutils.get_xldatefromdatetime(ds)
+    pfp_utils.get_xldatefromdatetime(ds)
     # get the Year, Month, Day etc from the Python datetime
-    qcutils.get_ymdhmsfromdatetime(ds)
+    pfp_utils.get_ymdhmsfromdatetime(ds)
     # write the processing level to a global attribute
     ds.globalattributes['nc_level'] = str(InLevel)
     # get the start and end date from the datetime series unless they were
@@ -708,11 +708,11 @@ def xl2nc(cf,InLevel):
     if 'end_date' not in ds.globalattributes.keys():
         ds.globalattributes['end_date'] = str(ds.series['DateTime']['Data'][-1])
     # calculate variances from standard deviations and vice versa
-    qcts.CalculateStandardDeviations(cf,ds)
+    pfp_ts.CalculateStandardDeviations(cf,ds)
     # create new variables using user defined functions
-    qcts.DoFunctions(cf,ds)
+    pfp_ts.DoFunctions(cf,ds)
     # create a series of synthetic downwelling shortwave radiation
-    qcts.get_synthetic_fsd(ds)
+    pfp_ts.get_synthetic_fsd(ds)
     # write the data to the netCDF file
     outfilename = get_outfilenamefromcf(cf)
     ncFile = nc_open_write(outfilename)
@@ -724,7 +724,7 @@ def ep_biomet_write_csv(cf):
     Purpose:
      Write a bionmet file for use with EddyPro.
     Usage:
-     qcio.ep_biomet_write_csv(cf)
+     pfp_io.ep_biomet_write_csv(cf)
      where:
       cf - a control file object that specifies the input and output file
            names and the variable mapping to use.
@@ -733,9 +733,9 @@ def ep_biomet_write_csv(cf):
     """
     # get the file names
     ncFileName = get_infilenamefromcf(cf)
-    if not qcutils.file_exists(ncFileName,mode="verbose"): return 0
+    if not pfp_utils.file_exists(ncFileName,mode="verbose"): return 0
     csvFileName = get_outfilenamefromcf(cf)
-    if not qcutils.path_exists(os.path.dirname(csvFileName),mode="verbose"): return 0
+    if not pfp_utils.path_exists(os.path.dirname(csvFileName),mode="verbose"): return 0
     # open the csv file
     csvfile = open(csvFileName,'wb')
     writer = csv.writer(csvfile)
@@ -743,11 +743,11 @@ def ep_biomet_write_csv(cf):
     ds = nc_read_series(ncFileName)
     nrecs = int(ds.globalattributes["nc_nrecs"])
     # get the date and time data
-    Day,flag,attr = qcutils.GetSeries(ds,'Day')
-    Month,flag,attr = qcutils.GetSeries(ds,'Month')
-    Year,flag,attr = qcutils.GetSeries(ds,'Year')
-    Hour,flag,attr = qcutils.GetSeries(ds,'Hour')
-    Minute,flag,attr = qcutils.GetSeries(ds,'Minute')
+    Day,flag,attr = pfp_utils.GetSeries(ds,'Day')
+    Month,flag,attr = pfp_utils.GetSeries(ds,'Month')
+    Year,flag,attr = pfp_utils.GetSeries(ds,'Year')
+    Hour,flag,attr = pfp_utils.GetSeries(ds,'Hour')
+    Minute,flag,attr = pfp_utils.GetSeries(ds,'Minute')
     # get the data
     data = ep_biomet_get_data(cf,ds)
     # check and adjust units if required
@@ -826,12 +826,12 @@ def fn_write_csv(cf):
     ones = numpy.ones(nRecs,dtype=numpy.int32)
     # Tumbarumba doesn't have RH in the netCDF files
     if "RH" not in ds.series.keys():
-        Ah,f,a = qcutils.GetSeriesasMA(ds,'Ah')
-        Ta,f,a = qcutils.GetSeriesasMA(ds,'Ta')
+        Ah,f,a = pfp_utils.GetSeriesasMA(ds,'Ah')
+        Ta,f,a = pfp_utils.GetSeriesasMA(ds,'Ta')
         RH = mf.RHfromabsolutehumidity(Ah, Ta)
-        attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='relative_humidity')
+        attr = pfp_utils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='relative_humidity')
         flag = numpy.where(numpy.ma.getmaskarray(RH)==True,ones,zeros)
-        qcutils.CreateSeries(ds,"RH",RH,flag,attr)
+        pfp_utils.CreateSeries(ds,"RH",RH,flag,attr)
     ts = int(ds.globalattributes["time_step"])
     ts_delta = datetime.timedelta(minutes=ts)
     # get the datetime series
@@ -841,7 +841,7 @@ def fn_write_csv(cf):
     if dt[0]<start_datetime:
         # requested start_datetime is after the start of the file
         logger.info(" Truncating start of file")
-        si = qcutils.GetDateIndex(dt,str(start_datetime),ts=ts,match="exact")
+        si = pfp_utils.GetDateIndex(dt,str(start_datetime),ts=ts,match="exact")
         for thisone in ds.series.keys():
             ds.series[thisone]["Data"] = ds.series[thisone]["Data"][si:]
             ds.series[thisone]["Flag"] = ds.series[thisone]["Flag"][si:]
@@ -849,7 +849,7 @@ def fn_write_csv(cf):
     elif dt[0]>start_datetime:
         # requested start_datetime is before the start of the file
         logger.info(" Padding start of file")
-        dt_patched = [ldt for ldt in qcutils.perdelta(start_datetime, dt[0]-ts_delta, ts_delta)]
+        dt_patched = [ldt for ldt in pfp_utils.perdelta(start_datetime, dt[0]-ts_delta, ts_delta)]
         data_patched = numpy.ones(len(dt_patched))*float(c.missing_value)
         flag_patched = numpy.ones(len(dt_patched))
         # list of series in the data structure
@@ -863,14 +863,14 @@ def fn_write_csv(cf):
             ds.series[thisone]["Flag"] = numpy.concatenate((flag_patched,ds.series[thisone]["Flag"]))
         ds.globalattributes["nc_nrecs"] = str(len(ds.series["DateTime"]["Data"]))
         # refresh the year, month, day etc arrays now that we have padded the datetime series
-        qcutils.get_ymdhmsfromdatetime(ds)
+        pfp_utils.get_ymdhmsfromdatetime(ds)
     # now check the end datetime of the file
     end_datetime = dateutil.parser.parse(str(cf["General"]["end_datetime"]))
     if dt[-1]>end_datetime:
         # requested end_datetime is before the end of the file
         msg = " Truncating end of file "+dt[-1].strftime("%Y-%m-%d %H:%M")+" "+end_datetime.strftime("%Y-%m-%d %H:%M")
         logger.info(msg)
-        ei = qcutils.GetDateIndex(dt,str(end_datetime),ts=ts,match="exact")
+        ei = pfp_utils.GetDateIndex(dt,str(end_datetime),ts=ts,match="exact")
         for thisone in ds.series.keys():
             ds.series[thisone]["Data"] = ds.series[thisone]["Data"][:ei+1]
             ds.series[thisone]["Flag"] = ds.series[thisone]["Flag"][:ei+1]
@@ -879,7 +879,7 @@ def fn_write_csv(cf):
         # requested end_datetime is before the requested end date
         msg = " Padding end of file "+dt[-1].strftime("%Y-%m-%d %H:%M")+" "+end_datetime.strftime("%Y-%m-%d %H:%M")
         logger.info(msg)
-        dt_patched = [ldt for ldt in qcutils.perdelta(dt[-1]+ts_delta, end_datetime, ts_delta)]
+        dt_patched = [ldt for ldt in pfp_utils.perdelta(dt[-1]+ts_delta, end_datetime, ts_delta)]
         data_patched = numpy.ones(len(dt_patched))*float(c.missing_value)
         flag_patched = numpy.ones(len(dt_patched))
         # list of series in the data structure
@@ -893,7 +893,7 @@ def fn_write_csv(cf):
             ds.series[thisone]["Flag"] = numpy.concatenate((ds.series[thisone]["Flag"],flag_patched))
         ds.globalattributes["nc_nrecs"] = str(len(ds.series["DateTime"]["Data"]))
         # refresh the year, month, day etc arrays now that we have padded the datetime series
-        qcutils.get_ymdhmsfromdatetime(ds)
+        pfp_utils.get_ymdhmsfromdatetime(ds)
     if ts==30:
         nRecs_year = 17520
         nRecs_leapyear = 17568
@@ -910,11 +910,11 @@ def fn_write_csv(cf):
         logger.error(msg)
         return
     # get the date and time data
-    Day,flag,attr = qcutils.GetSeries(ds,'Day')
-    Month,flag,attr = qcutils.GetSeries(ds,'Month')
-    Year,flag,attr = qcutils.GetSeries(ds,'Year')
-    Hour,flag,attr = qcutils.GetSeries(ds,'Hour')
-    Minute,flag,attr = qcutils.GetSeries(ds,'Minute')
+    Day,flag,attr = pfp_utils.GetSeries(ds,'Day')
+    Month,flag,attr = pfp_utils.GetSeries(ds,'Month')
+    Year,flag,attr = pfp_utils.GetSeries(ds,'Year')
+    Hour,flag,attr = pfp_utils.GetSeries(ds,'Hour')
+    Minute,flag,attr = pfp_utils.GetSeries(ds,'Minute')
     # get the data
     data = {}
     series_list = cf["Variables"].keys()
@@ -1016,7 +1016,7 @@ def get_filename_dialog(path='.',title='Choose a file'):
     Purpose:
      Put up a file open dialog and let the user browse to open a file
     Usage:
-     fname = qcio.get_filename_dialog(path=<path_to_file>,title=<tile>)
+     fname = pfp_io.get_filename_dialog(path=<path_to_file>,title=<tile>)
      where path  - the path to the file location, optional
            title - the title for the file open dialog, optional
     Returns:
@@ -1030,13 +1030,13 @@ def get_filename_dialog(path='.',title='Choose a file'):
     return str(FileName)
 
 def get_infilenamefromcf(cf):
-    path = qcutils.get_keyvaluefromcf(cf,["Files"],"file_path",default="")
-    name = qcutils.get_keyvaluefromcf(cf,["Files"],"in_filename",default="")
+    path = pfp_utils.get_keyvaluefromcf(cf,["Files"],"file_path",default="")
+    name = pfp_utils.get_keyvaluefromcf(cf,["Files"],"in_filename",default="")
     return str(path)+str(name)
 
 def get_outfilenamefromcf(cf):
-    path = qcutils.get_keyvaluefromcf(cf,["Files"],"file_path",default="")
-    name = qcutils.get_keyvaluefromcf(cf,["Files"],"out_filename",default="")
+    path = pfp_utils.get_keyvaluefromcf(cf,["Files"],"file_path",default="")
+    name = pfp_utils.get_keyvaluefromcf(cf,["Files"],"out_filename",default="")
     return str(path)+str(name)
 
 def get_outputlistfromcf(cf,filetype):
@@ -1128,7 +1128,7 @@ def get_seriesstats(cf,ds):
     dsVarNames = ds.series.keys()
     dsVarNames.sort(key=unicode.lower)
     for ThisOne in dsVarNames:
-        data,flag,attr = qcutils.GetSeries(ds, ThisOne)
+        data,flag,attr = pfp_utils.GetSeries(ds, ThisOne)
         hist, bin_edges = numpy.histogram(flag, bins=bins)
         xlFlagSheet.write(xlRow,xlCol,ThisOne)
         xlCol = xlCol + 1
@@ -1144,7 +1144,7 @@ def load_controlfile(path='.',title='Choose a control file'):
     Purpose:
      Returns a control file object.
     Usage:
-     cf = qcio.load_controlfile([path=<some_path_to_a_controlfile>],[title=<some title>])
+     cf = pfp_io.load_controlfile([path=<some_path_to_a_controlfile>],[title=<some title>])
           where path [optional] is the path to a subdirectory
                 title [optional] is a title for the file open dialog
                 cf is a control file object
@@ -1165,7 +1165,7 @@ def nc_concatenate(cf):
     # read in the first file
     baseFileName = cf['Files']['In'][InFile_list[0]]
     logger.info(' Reading data from '+os.path.split(baseFileName)[1])
-    fixtimestepmethod = qcutils.get_keyvaluefromcf(cf,["Options"],"FixTimeStepMethod",default="round")
+    fixtimestepmethod = pfp_utils.get_keyvaluefromcf(cf,["Options"],"FixTimeStepMethod",default="round")
     ds_n = nc_read_series(baseFileName,fixtimestepmethod=fixtimestepmethod)
     if len(ds_n.series.keys())==0:
         logger.error(' An error occurred reading netCDF file: '+baseFileName)
@@ -1184,19 +1184,19 @@ def nc_concatenate(cf):
         if item in series_list: series_list.remove(item)
 
     # loop over the data series and calculate fraction of data present
-    opt = qcutils.get_keyvaluefromcf(cf,["Options"],"Truncate",default="Yes")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["Options"],"Truncate",default="Yes")
     if opt.lower() == "yes":
         default_list = ["Ah","Cc","Fa","Fg","Fld","Flu","Fn","Fsd","Fsu","ps","Sws","Ta","Ts","Ws","Wd","Precip"]
-        series_list = qcutils.get_keyvaluefromcf(cf,["Options"],"SeriesToCheck",default=default_list)
+        series_list = pfp_utils.get_keyvaluefromcf(cf,["Options"],"SeriesToCheck",default=default_list)
         if isinstance(series_list, basestring):
             series_list = ast.literal_eval(series_list)
         for item in series_list:
-            data,flag,attr = qcutils.GetSeriesasMA(ds_n,item)
+            data,flag,attr = pfp_utils.GetSeriesasMA(ds_n,item)
             idx = numpy.ma.where(data.mask==False)
             cond_idx[idx] = cond_idx[idx] + 1
         cond_idx = cond_idx/len(series_list)
         # find the first element where more than 50% data is present
-        opt = qcutils.get_keyvaluefromcf(cf,["Options"],"TruncateThreshold",default="50")
+        opt = pfp_utils.get_keyvaluefromcf(cf,["Options"],"TruncateThreshold",default="50")
         threshold = float(opt)/float(100)
         idx = numpy.where(cond_idx>=threshold)[0]
         # skip if enough data is present from the start of the file
@@ -1272,7 +1272,7 @@ def nc_concatenate(cf):
                 logger.warning(msg)
         if dt_n[0]<dt[-1]+datetime.timedelta(minutes=ts):
             logger.info(' Overlapping times detected in consecutive files')
-            si = qcutils.GetDateIndex(dt_n,str(dt[-1]),ts=ts)+1
+            si = pfp_utils.GetDateIndex(dt_n,str(dt[-1]),ts=ts)+1
             ei = -1
         if dt_n[0]==dt[-1]+datetime.timedelta(minutes=ts):
             logger.info(' Start and end times OK in consecutive files')
@@ -1323,19 +1323,19 @@ def nc_concatenate(cf):
         #if item in series_list: series_list.remove(item)
 
     # loop over the data series and calculate fraction of data present
-    opt = qcutils.get_keyvaluefromcf(cf,["Options"],"Truncate",default="Yes")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["Options"],"Truncate",default="Yes")
     if opt.lower() == "yes":
         default_list = ["Ah","Cc","Fa","Fg","Fld","Flu","Fn","Fsd","Fsu","ps","Sws","Ta","Ts","Ws","Wd","Precip"]
-        series_list = qcutils.get_keyvaluefromcf(cf,["Options"],"SeriesToCheck",default=default_list)
+        series_list = pfp_utils.get_keyvaluefromcf(cf,["Options"],"SeriesToCheck",default=default_list)
         if isinstance(series_list, basestring):
             series_list = ast.literal_eval(series_list)
         for item in series_list:
-            data,flag,attr = qcutils.GetSeriesasMA(ds,item)
+            data,flag,attr = pfp_utils.GetSeriesasMA(ds,item)
             idx = numpy.where(numpy.ma.getmaskarray(data)==False)
             cond_idx[idx] = cond_idx[idx] + 1
         cond_idx = cond_idx/len(series_list)
         # find the last element where more than 50% data is present
-        opt = qcutils.get_keyvaluefromcf(cf,["Options"],"TruncateThreshold",default="50")
+        opt = pfp_utils.get_keyvaluefromcf(cf,["Options"],"TruncateThreshold",default="50")
         threshold = float(opt)/float(100)
         idx = numpy.where(cond_idx>=threshold)[0]
         # skip if data is present to the end of the file
@@ -1355,13 +1355,13 @@ def nc_concatenate(cf):
         ds.globalattributes["nc_nrecs"] = len(ds.series["DateTime"]["Data"])
 
     # now sort out any time gaps
-    if qcutils.CheckTimeStep(ds):
-        fixtimestepmethod = qcutils.get_keyvaluefromcf(cf,["Options"],"FixTimeStepMethod",default="round")
-        qcutils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
+    if pfp_utils.CheckTimeStep(ds):
+        fixtimestepmethod = pfp_utils.get_keyvaluefromcf(cf,["Options"],"FixTimeStepMethod",default="round")
+        pfp_utils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
         # update the Excel datetime from the Python datetime
-        qcutils.get_xldatefromdatetime(ds)
+        pfp_utils.get_xldatefromdatetime(ds)
         # update the Year, Month, Day etc from the Python datetime
-        qcutils.get_ymdhmsfromdatetime(ds)
+        pfp_utils.get_ymdhmsfromdatetime(ds)
     # if requested, fill any small gaps by interpolation
     # get a list of series in ds excluding the QC flags
     series_list = [item for item in ds.series.keys() if "_QCFlag" not in item]
@@ -1371,36 +1371,36 @@ def nc_concatenate(cf):
         if item in series_list: series_list.remove(item)
     # loop over the non-datetime data series in ds and interpolate
     # get the maximum gap length (in hours) from the control file
-    maxlen = int(qcutils.get_keyvaluefromcf(cf,["Options"],"MaxGapInterpolate",default=2))
+    maxlen = int(pfp_utils.get_keyvaluefromcf(cf,["Options"],"MaxGapInterpolate",default=2))
     if maxlen!=0:
         # now loop over the series and do the interpolation
         logger.info(" Interpolating over fixed time gaps ("+str(maxlen)+" hour max)")
         for item in series_list:
-            qcts.InterpolateOverMissing(ds,series=item,maxlen=maxlen)
+            pfp_ts.InterpolateOverMissing(ds,series=item,maxlen=maxlen)
     # make sure we have all of the humidities
-    qcts.CalculateHumidities(ds)
+    pfp_ts.CalculateHumidities(ds)
     # and make sure we have all of the meteorological variables
-    qcts.CalculateMeteorologicalVariables(ds)
+    pfp_ts.CalculateMeteorologicalVariables(ds)
     # check units of Fc and convert if necessary
     Fc_list = [label for label in ds.series.keys() if label[0:2] == "Fc"]
-    qcutils.CheckUnits(ds, Fc_list, "umol/m2/s", convert_units=True)
+    pfp_utils.CheckUnits(ds, Fc_list, "umol/m2/s", convert_units=True)
     # re-calculate the synthetic Fsd
-    #qcts.get_synthetic_fsd(ds)
+    #pfp_ts.get_synthetic_fsd(ds)
     # re-apply the quality control checks (range, diurnal and rules)
-    qcck.do_qcchecks(cf,ds)
+    pfp_ck.do_qcchecks(cf,ds)
     # update the global attributes for this level
     if "nc_level" in ds.globalattributes.keys():
         level = ds.globalattributes["nc_level"]
     else:
         level = "unknown"
-    qcutils.UpdateGlobalAttributes(cf,ds,level)
+    pfp_utils.UpdateGlobalAttributes(cf,ds,level)
     # check missing data and QC flags are consistent
-    qcutils.CheckQCFlags(ds)
+    pfp_utils.CheckQCFlags(ds)
     # update the coverage statistics
-    qcutils.get_coverage_individual(ds)
-    qcutils.get_coverage_groups(ds)
+    pfp_utils.get_coverage_individual(ds)
+    pfp_utils.get_coverage_groups(ds)
     # write the netCDF file
-    outFileName = qcutils.get_keyvaluefromcf(cf,["Files","Out"],"ncFileName",default="out.nc")
+    outFileName = pfp_utils.get_keyvaluefromcf(cf,["Files","Out"],"ncFileName",default="out.nc")
     logger.info(' Writing data to '+os.path.split(outFileName)[1])
     # check to see if the base and concatenated file names are the same
     # IE the user wants to overwrite the base file
@@ -1417,7 +1417,7 @@ def nc_concatenate(cf):
         os.rename(baseFileName,newFileName)
         # now the base file will not be overwritten
     ncFile = nc_open_write(outFileName)
-    ndims = int(qcutils.get_keyvaluefromcf(cf,["Options"],"NumberOfDimensions", default=3))
+    ndims = int(pfp_utils.get_keyvaluefromcf(cf,["Options"],"NumberOfDimensions", default=3))
     nc_write_series(ncFile,ds,ndims=ndims)
 
 def nc_split():
@@ -1512,8 +1512,8 @@ def ncsplit_run(split_gui):
     for item in ds_in.globalattributes.keys():
         ds_out.globalattributes[item] = ds_in.globalattributes[item]
     # get the indices of the start and end datetimes
-    si = qcutils.GetDateIndex(ldt_in,startdate,ts=ts,default=0,match="exact")
-    ei = qcutils.GetDateIndex(ldt_in,enddate,ts=ts,default=len(ldt_in),match="exact")
+    si = pfp_utils.GetDateIndex(ldt_in,startdate,ts=ts,default=0,match="exact")
+    ei = pfp_utils.GetDateIndex(ldt_in,enddate,ts=ts,default=len(ldt_in),match="exact")
     # get a list of the series in ds_in
     series_list = [item for item in ds_in.series.keys() if "_QCFlag" not in item]
     # remove the Python datetime series
@@ -1521,8 +1521,8 @@ def ncsplit_run(split_gui):
         if item in series_list: series_list.remove(item)
     # loop over the series
     for item in series_list:
-        data,flag,attr = qcutils.GetSeriesasMA(ds_in,item,si=si,ei=ei)
-        qcutils.CreateSeries(ds_out,item,data,flag,attr)
+        data,flag,attr = pfp_utils.GetSeriesasMA(ds_in,item,si=si,ei=ei)
+        pfp_utils.CreateSeries(ds_out,item,data,flag,attr)
     # deal with the Python datetime series
     ldt_out = ldt_in[si:ei+1]
     ldt_out_flag = ldt_in_flag[si:ei+1]
@@ -1553,7 +1553,7 @@ def nc_read_series(ncFullName,checktimestep=True,fixtimestepmethod=""):
     """
     Purpose:
      Reads a netCDF file and returns the meta-data and data in a DataStructure.
-     The returned data structure is an instance of qcio.DataStructure().
+     The returned data structure is an instance of pfp_io.DataStructure().
      The data structure consists of:
       1) ds.globalattributes
          A dictionary containing the global attributes of the netCDF file.
@@ -1568,15 +1568,15 @@ def nc_read_series(ncFullName,checktimestep=True,fixtimestepmethod=""):
          c) ds.series[variable]["Attr"]
             A dictionary containing the variable attributes.
     Usage:
-     nc_name = qcio.get_filename_dialog(path="../Sites/Whroo/Data/Processed/")
-     ds = qcio.nc_read_series(nc_name)
+     nc_name = pfp_io.get_filename_dialog(path="../Sites/Whroo/Data/Processed/")
+     ds = pfp_io.nc_read_series(nc_name)
      where nc_name is the full name of the netCDF file to be read
            ds is the returned data structure
     Side effects:
      This routine checks the time step of the data read from the netCDF file
-     against the value of the global attribute "time_step", see qcutils.CheckTimeStep.
+     against the value of the global attribute "time_step", see pfp_utils.CheckTimeStep.
      If a problem is found with the time step (duplicate records, non-integral
-     time steps or gaps) then qcutils.FixTimeStep is called to repair the time step.
+     time steps or gaps) then pfp_utils.FixTimeStep is called to repair the time step.
      Fixing non-integral timne steps requires some user input.  The options are to
      quit ([Q]), interpolate ([I], not implemented yet) or round ([R]).  Quitting
      causes the script to exit and return to the command prompt.  Interpolation
@@ -1591,7 +1591,7 @@ def nc_read_series(ncFullName,checktimestep=True,fixtimestepmethod=""):
     ds = DataStructure()
     # check to see if the requested file exists, return empty ds if it doesn't
     if ncFullName[0:4]!="http":
-        if not qcutils.file_exists(ncFullName,mode="quiet"):
+        if not pfp_utils.file_exists(ncFullName,mode="quiet"):
             logger.error(' netCDF file '+ncFullName+' not found')
             raise Exception("nc_read_series: file not found")
     # file probably exists, so let's read it
@@ -1620,23 +1620,23 @@ def nc_read_series(ncFullName,checktimestep=True,fixtimestepmethod=""):
     # make sure all values of -9999 have non-zero QC flag
     # NOTE: the following was a quick and dirty fix for something a long time ago
     #       and needs to be retired
-    #qcutils.CheckQCFlags(ds)
+    #pfp_utils.CheckQCFlags(ds)
     # get a series of Python datetime objects
     if "time" in ds.series.keys():
-        time,f,a = qcutils.GetSeries(ds,"time")
-        qcutils.get_datetimefromnctime(ds,time,a["units"])
+        time,f,a = pfp_utils.GetSeries(ds,"time")
+        pfp_utils.get_datetimefromnctime(ds,time,a["units"])
     else:
-        qcutils.get_datetimefromymdhms(ds)
+        pfp_utils.get_datetimefromymdhms(ds)
     # round the Python datetime to the nearest second
-    qcutils.round_datetime(ds,mode="nearest_second")
+    pfp_utils.round_datetime(ds,mode="nearest_second")
     # check the time step and fix it required
     if checktimestep:
-        if qcutils.CheckTimeStep(ds):
-            qcutils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
+        if pfp_utils.CheckTimeStep(ds):
+            pfp_utils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
             # update the Excel datetime from the Python datetime
-            qcutils.get_xldatefromdatetime(ds)
+            pfp_utils.get_xldatefromdatetime(ds)
             # update the Year, Month, Day etc from the Python datetime
-            qcutils.get_ymdhmsfromdatetime(ds)
+            pfp_utils.get_ymdhmsfromdatetime(ds)
     # tell the user when the data starts and ends
     ldt = ds.series["DateTime"]["Data"]
     msg = " Got data from "+ldt[0].strftime("%Y-%m-%d %H:%M:%S")+" to "+ldt[-1].strftime("%Y-%m-%d %H:%M:%S")
@@ -1648,7 +1648,7 @@ def nc_read_todf(ncFullName, var_list=[], include_qcflags=False):
     Purpose:
      Read an OzFlux netCDF file and return the data in an Pandas data frame.
     Usage:
-     df = qcio.nc_read_todf(ncFullName)
+     df = pfp_io.nc_read_todf(ncFullName)
       where ncFullName is the full name of the netCDF file.
     Side effects:
      Returns a Pandas data frame
@@ -1658,7 +1658,7 @@ def nc_read_todf(ncFullName, var_list=[], include_qcflags=False):
     logger.info(" Reading netCDF file "+ncFullName+" to Pandas data frame")
     netCDF4.default_encoding = 'latin-1'
     # check to see if the requested file exists, return empty ds if it doesn't
-    if not qcutils.file_exists(ncFullName, mode="quiet"):
+    if not pfp_utils.file_exists(ncFullName, mode="quiet"):
         logger.error(' netCDF file '+ncFullName+' not found')
         raise Exception("nc_read_todf: file not found")
     # file probably exists, so let's read it
@@ -1734,7 +1734,7 @@ def nc_read_var(ncFile,ThisOne):
         data = ncFile.variables[ThisOne][:]
         # netCDF4 returns a masked array if the "missing_variable" attribute has been set
         # for the variable, here we trap this and force the array in ds.series to be ndarray
-        if numpy.ma.isMA(data): data,dummy = qcutils.MAtoSeries(data)
+        if numpy.ma.isMA(data): data,dummy = pfp_utils.MAtoSeries(data)
         # check for a QC flag
         if ThisOne+'_QCFlag' in ncFile.variables.keys():
             # load it from the netCDF file
@@ -1749,7 +1749,7 @@ def nc_read_var(ncFile,ThisOne):
         # netCDF4 returns a masked array if the "missing_variable" attribute has been set
         # for the variable, here we trap this and force the array in ds.series to be ndarray
         # may not be needed after adding ncFile.set_auto_mask(False) in nc_read_series().
-        if numpy.ma.isMA(data): data,dummy = qcutils.MAtoSeries(data)
+        if numpy.ma.isMA(data): data,dummy = pfp_utils.MAtoSeries(data)
         # check for a QC flag
         if ThisOne+'_QCFlag' in ncFile.variables.keys():
             # load it from the netCDF file
@@ -1775,11 +1775,11 @@ def nc_open_write(ncFullName,nctype='NETCDF4'):
     """
     Purpose:
      Opens a netCDF file object for writing.  The opened netCDF file
-     object is then passed as an argument to qcio.nc_write_series, where
+     object is then passed as an argument to pfp_io.nc_write_series, where
      the actual writing of data occurs.
     Usage:
      nc_name = '../Sites/Whroo/Data/Processed/all/Whroo_L4.nc'
-     nc_file = qcio.nc_open_write(nc_name)
+     nc_file = pfp_io.nc_open_write(nc_name)
      where nc_name is the ful file name of the netCDF to be written
            nc_file is the returned netCDF file object
     Author: PRI
@@ -1886,9 +1886,9 @@ def nc_write_series(ncFile, ds, outputlist=None, ndims=3):
     Purpose:
      Write the contents of a data structure to a netCDF file.
     Usage:
-     nc_file = qcio.nc_open_write(nc_name)
-     qcio.nc_write_series(nc_file,ds)
-     where nc_file is a netCDF file object returned by qcio.nc_open_write
+     nc_file = pfp_io.nc_open_write(nc_name)
+     pfp_io.nc_write_series(nc_file,ds)
+     where nc_file is a netCDF file object returned by pfp_io.nc_open_write
            ds is a data structure
     Author: PRI
     Date: Back in the day
@@ -1936,13 +1936,13 @@ def nc_write_series(ncFile, ds, outputlist=None, ndims=3):
     if ndims==3:
         if "latitude" not in outputlist:
             ncVar = ncFile.createVariable("latitude","d",("latitude",))
-            ncVar[:] = qcutils.convert_anglestring(str(ds.globalattributes["latitude"]))
+            ncVar[:] = pfp_utils.convert_anglestring(str(ds.globalattributes["latitude"]))
             setattr(ncVar,'long_name','latitude')
             setattr(ncVar,'standard_name','latitude')
             setattr(ncVar,'units','degrees north')
         if "longitude" not in outputlist:
             ncVar = ncFile.createVariable("longitude","d",("longitude",))
-            ncVar[:] = qcutils.convert_anglestring(str(ds.globalattributes["longitude"]))
+            ncVar[:] = pfp_utils.convert_anglestring(str(ds.globalattributes["longitude"]))
             setattr(ncVar,'long_name','longitude')
             setattr(ncVar,'standard_name','longitude')
             setattr(ncVar,'units','degrees east')
@@ -2035,8 +2035,8 @@ def xl_open_write(xl_name):
 
 def xl_read_flags(cf,ds,level,VariablesInFile):
     # First data row in Excel worksheets.
-    FirstDataRow = int(qcutils.get_keyvaluefromcf(cf,["Files",level],"first_data_row")) - 1
-    HeaderRow = int(qcutils.get_keyvaluefromcf(cf,['Files','in'],'header_row')) - 1
+    FirstDataRow = int(pfp_utils.get_keyvaluefromcf(cf,["Files",level],"first_data_row")) - 1
+    HeaderRow = int(pfp_utils.get_keyvaluefromcf(cf,['Files','in'],'header_row')) - 1
     # Get the full name of the Excel file from the control file.
     xlFullName = get_filename_from_cf(cf,level)
     # Get the Excel workbook object.
@@ -2090,8 +2090,8 @@ def xl_read_series(cf):
         ds.returncodes = {"value":1,"message":msg}
         return ds
     # convert from Excel row number to xlrd row number
-    first_data_row = int(qcutils.get_keyvaluefromcf(cf,["Files"],"in_firstdatarow")) - 1
-    header_row = int(qcutils.get_keyvaluefromcf(cf,["Files"],"in_headerrow")) - 1
+    first_data_row = int(pfp_utils.get_keyvaluefromcf(cf,["Files"],"in_firstdatarow")) - 1
+    header_row = int(pfp_utils.get_keyvaluefromcf(cf,["Files"],"in_headerrow")) - 1
     # get the Excel workbook object.
     file_name = os.path.split(FileName)
     logger.info(" Reading Excel file "+file_name[1])
@@ -2293,7 +2293,7 @@ def xl_write_ISD_timesteps(xl_file_path, data):
       data[site][year]["stdev"]
       data[site][year]["mode"]
     Usage:
-     qcio.xl_write_ISD_timesteps(xl_file_path, data)
+     pfp_io.xl_write_ISD_timesteps(xl_file_path, data)
       where xl_file_path is an Excel workbook file name
             data         is a dictionary as defined above
     Side effects:
@@ -2343,7 +2343,7 @@ def xl_write_data(xl_sheet, data, xlCol=0):
          data[variable]["format"]   - an xlwt.easyxf format string eg "0.00" for 2 decimal places
          There can be multiple variables but each must follow the above template.
     Usage:
-     qcio.xl_write_data(xl_sheet, data)
+     pfp_io.xl_write_data(xl_sheet, data)
       where xl_sheet is an Excel worksheet instance
             data     is a dictionary as defined above
     Side effects:
@@ -2443,8 +2443,8 @@ def xl_write_series(ds, xlfullname, outputlist=None):
             xlrow = xlrow + 1
     # write the Excel date/time to the data and the QC flags as the first column
     if "xlDateTime" not in ds.series:
-        qcutils.get_xldatefromdatetime(ds)
-    xlDateTime,f,a = qcutils.GetSeries(ds,"xlDateTime")
+        pfp_utils.get_xldatefromdatetime(ds)
+    xlDateTime,f,a = pfp_utils.GetSeries(ds,"xlDateTime")
     logger.info(' Writing the datetime to Excel file '+xlfullname)
     d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
     xlDataSheet.write(2,xlcol,'xlDateTime')

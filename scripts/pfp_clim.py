@@ -13,11 +13,11 @@ import numpy
 import xlwt
 # PFP modules
 import constants as c
-import qcck
-import qcio
-import qcplot
-import qcts
-import qcutils
+import pfp_ck
+import pfp_io
+import pfp_plot
+import pfp_ts
+import pfp_utils
 
 logger = logging.getLogger("pfp_log")
 
@@ -201,16 +201,16 @@ def get_formatstring(cf,label,fmt_def=''):
     return fmt_str
 
 def climatology(cf):
-    nc_filename = qcio.get_infilenamefromcf(cf)
-    if not qcutils.file_exists(nc_filename): return
+    nc_filename = pfp_io.get_infilenamefromcf(cf)
+    if not pfp_utils.file_exists(nc_filename): return
     xl_filename = nc_filename.replace(".nc","_Climatology.xls")
     xlFile = xlwt.Workbook()
-    ds = qcio.nc_read_series(nc_filename)
+    ds = pfp_io.nc_read_series(nc_filename)
     # calculate Fa if it is not in the data structure
     got_Fa = True
     if "Fa" not in ds.series.keys():
         if "Fn" in ds.series.keys() and "Fg" in ds.series.keys():
-            qcts.CalculateAvailableEnergy(ds,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg')
+            pfp_ts.CalculateAvailableEnergy(ds,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg')
         else:
             got_Fa = False
             logger.warning(" Fn or Fg not in data struicture")
@@ -226,9 +226,9 @@ def climatology(cf):
     StartDate = str(dt[0])
     EndDate = str(dt[-1])
     # find the start index of the first whole day (time=00:30)
-    si = qcutils.GetDateIndex(dt,StartDate,ts=ts,default=0,match='startnextday')
+    si = pfp_utils.GetDateIndex(dt,StartDate,ts=ts,default=0,match='startnextday')
     # find the end index of the last whole day (time=00:00)
-    ei = qcutils.GetDateIndex(dt,EndDate,ts=ts,default=-1,match='endpreviousday')
+    ei = pfp_utils.GetDateIndex(dt,EndDate,ts=ts,default=-1,match='endpreviousday')
     # get local views of the datetime series
     ldt = dt[si:ei+1]
     Hdh = Hdh[si:ei+1]
@@ -241,7 +241,7 @@ def climatology(cf):
         if "AltVarName" in cf['Variables'][ThisOne].keys(): ThisOne = cf['Variables'][ThisOne]["AltVarName"]
         if ThisOne in ds.series.keys():
             logger.info(" Doing climatology for "+ThisOne)
-            data,f,a = qcutils.GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
+            data,f,a = pfp_utils.GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
             if numpy.ma.count(data)==0:
                 logger.warning(" No data for "+ThisOne+", skipping ...")
                 continue
@@ -271,7 +271,7 @@ def climatology(cf):
                 sdate = ldt[0]-datetime.timedelta(days=1)
             # get the data and use the "pad" option to add missing data if required to
             # complete the extra days
-            data,f,a = qcutils.GetSeriesasMA(ds,ThisOne,si=si_daily,ei=ei_daily,mode="pad")
+            data,f,a = pfp_utils.GetSeriesasMA(ds,ThisOne,si=si_daily,ei=ei_daily,mode="pad")
             data_daily = data.reshape(nDays_daily,ntsInDay)
             xlSheet = xlFile.add_sheet(ThisOne+'(day)')
             write_data_1columnpertimestep(xlSheet, data_daily, ts, startdate=sdate, format_string=fmt_str)
@@ -281,9 +281,9 @@ def climatology(cf):
         elif ThisOne=="EF" and got_Fa:
             logger.info(" Doing evaporative fraction")
             EF = numpy.ma.zeros([48,12]) + float(c.missing_value)
-            Hdh,f,a = qcutils.GetSeriesasMA(ds,'Hdh',si=si,ei=ei)
-            Fa,f,a = qcutils.GetSeriesasMA(ds,'Fa',si=si,ei=ei)
-            Fe,f,a = qcutils.GetSeriesasMA(ds,'Fe',si=si,ei=ei)
+            Hdh,f,a = pfp_utils.GetSeriesasMA(ds,'Hdh',si=si,ei=ei)
+            Fa,f,a = pfp_utils.GetSeriesasMA(ds,'Fa',si=si,ei=ei)
+            Fe,f,a = pfp_utils.GetSeriesasMA(ds,'Fe',si=si,ei=ei)
             for m in range(1,13):
                 mi = numpy.where(Month==m)[0]
                 Fa_Num,Hr,Fa_Av,Sd,Mx,Mn = get_diurnalstats(Hdh[mi],Fa[mi],ts)
@@ -301,8 +301,8 @@ def climatology(cf):
             xlSheet = xlFile.add_sheet('EFi')
             write_data_1columnpermonth(xlSheet, EFi, ts, format_string='0.00')
             # now do EF for each day
-            Fa,f,a = qcutils.GetSeriesasMA(ds,'Fa',si=si,ei=ei)
-            Fe,f,a = qcutils.GetSeriesasMA(ds,'Fe',si=si,ei=ei)
+            Fa,f,a = pfp_utils.GetSeriesasMA(ds,'Fa',si=si,ei=ei)
+            Fe,f,a = pfp_utils.GetSeriesasMA(ds,'Fe',si=si,ei=ei)
             EF = Fe/Fa
             EF = numpy.ma.filled(numpy.ma.masked_where((EF>upr)|(EF<lwr),EF),float(c.missing_value))
             EF_daily = EF.reshape(nDays,ntsInDay)
@@ -314,8 +314,8 @@ def climatology(cf):
         elif ThisOne=="BR":
             logger.info(" Doing Bowen ratio")
             BR = numpy.ma.zeros([48,12]) + float(c.missing_value)
-            Fe,f,a = qcutils.GetSeriesasMA(ds,'Fe',si=si,ei=ei)
-            Fh,f,a = qcutils.GetSeriesasMA(ds,'Fh',si=si,ei=ei)
+            Fe,f,a = pfp_utils.GetSeriesasMA(ds,'Fe',si=si,ei=ei)
+            Fh,f,a = pfp_utils.GetSeriesasMA(ds,'Fh',si=si,ei=ei)
             for m in range(1,13):
                 mi = numpy.where(Month==m)[0]
                 Fh_Num,Hr,Fh_Av,Sd,Mx,Mn = get_diurnalstats(Hdh[mi],Fh[mi],ts)
@@ -333,8 +333,8 @@ def climatology(cf):
             xlSheet = xlFile.add_sheet('BRi')
             write_data_1columnpermonth(xlSheet, BRi, ts, format_string='0.00')
             # now do BR for each day ...
-            Fe,f,a = qcutils.GetSeriesasMA(ds,'Fe',si=si,ei=ei)
-            Fh,f,a = qcutils.GetSeriesasMA(ds,'Fh',si=si,ei=ei)
+            Fe,f,a = pfp_utils.GetSeriesasMA(ds,'Fe',si=si,ei=ei)
+            Fh,f,a = pfp_utils.GetSeriesasMA(ds,'Fh',si=si,ei=ei)
             BR = Fh/Fe
             BR = numpy.ma.filled(numpy.ma.masked_where((BR>upr)|(BR<lwr),BR),float(c.missing_value))
             BR_daily = BR.reshape(nDays,ntsInDay)
@@ -346,8 +346,8 @@ def climatology(cf):
         elif ThisOne=="WUE":
             logger.info(" Doing ecosystem WUE")
             WUE = numpy.ma.zeros([48,12]) + float(c.missing_value)
-            Fe,f,a = qcutils.GetSeriesasMA(ds,'Fe',si=si,ei=ei)
-            Fc,f,a = qcutils.GetSeriesasMA(ds,'Fc',si=si,ei=ei)
+            Fe,f,a = pfp_utils.GetSeriesasMA(ds,'Fe',si=si,ei=ei)
+            Fc,f,a = pfp_utils.GetSeriesasMA(ds,'Fc',si=si,ei=ei)
             for m in range(1,13):
                 mi = numpy.where(Month==m)[0]
                 Fc_Num,Hr,Fc_Av,Sd,Mx,Mn = get_diurnalstats(Hdh[mi],Fc[mi],ts)
@@ -365,8 +365,8 @@ def climatology(cf):
             xlSheet = xlFile.add_sheet('WUEi')
             write_data_1columnpermonth(xlSheet, WUEi, ts, format_string='0.00000')
             # now do WUE for each day ...
-            Fe,f,a = qcutils.GetSeriesasMA(ds,'Fe',si=si,ei=ei)
-            Fc,f,a = qcutils.GetSeriesasMA(ds,'Fc',si=si,ei=ei)
+            Fe,f,a = pfp_utils.GetSeriesasMA(ds,'Fe',si=si,ei=ei)
+            Fc,f,a = pfp_utils.GetSeriesasMA(ds,'Fc',si=si,ei=ei)
             WUE = Fc/Fe
             WUE = numpy.ma.filled(numpy.ma.masked_where((WUE>upr)|(WUE<lwr),WUE),float(c.missing_value))
             WUE_daily = WUE.reshape(nDays,ntsInDay)
@@ -382,11 +382,11 @@ def climatology(cf):
     xlFile.save(xl_filename)
 
 def compare_eddypro():
-    epname = qcio.get_filename_dialog(title='Choose an EddyPro full output file')
-    ofname = qcio.get_filename_dialog(title='Choose an L3 output file')
+    epname = pfp_io.get_filename_dialog(title='Choose an EddyPro full output file')
+    ofname = pfp_io.get_filename_dialog(title='Choose an L3 output file')
 
-    ds_ep = qcio.read_eddypro_full(epname)
-    ds_of = qcio.nc_read_series(ofname)
+    ds_ep = pfp_io.read_eddypro_full(epname)
+    ds_of = pfp_io.nc_read_series(ofname)
 
     dt_ep = ds_ep.series['DateTime']['Data']
     dt_of = ds_of.series['DateTime']['Data']
@@ -394,36 +394,36 @@ def compare_eddypro():
     start_datetime = max([dt_ep[0],dt_of[0]])
     end_datetime = min([dt_ep[-1],dt_of[-1]])
 
-    si_of = qcutils.GetDateIndex(dt_of, str(start_datetime), ts=30, default=0, match='exact')
-    ei_of = qcutils.GetDateIndex(dt_of, str(end_datetime), ts=30, default=len(dt_of), match='exact')
-    si_ep = qcutils.GetDateIndex(dt_ep, str(start_datetime), ts=30, default=0, match='exact')
-    ei_ep = qcutils.GetDateIndex(dt_ep, str(end_datetime), ts=30, default=len(dt_ep), match='exact')
+    si_of = pfp_utils.GetDateIndex(dt_of, str(start_datetime), ts=30, default=0, match='exact')
+    ei_of = pfp_utils.GetDateIndex(dt_of, str(end_datetime), ts=30, default=len(dt_of), match='exact')
+    si_ep = pfp_utils.GetDateIndex(dt_ep, str(start_datetime), ts=30, default=0, match='exact')
+    ei_ep = pfp_utils.GetDateIndex(dt_ep, str(end_datetime), ts=30, default=len(dt_ep), match='exact')
 
-    us_of = qcutils.GetVariable(ds_of,'ustar',start=si_of,end=ei_of)
-    us_ep = qcutils.GetVariable(ds_ep,'ustar',start=si_ep,end=ei_ep)
-    Fh_of = qcutils.GetVariable(ds_of,'Fh',start=si_of,end=ei_of)
-    Fh_ep = qcutils.GetVariable(ds_ep,'Fh',start=si_ep,end=ei_ep)
-    Fe_of = qcutils.GetVariable(ds_of,'Fe',start=si_of,end=ei_of)
-    Fe_ep = qcutils.GetVariable(ds_ep,'Fe',start=si_ep,end=ei_ep)
-    Fc_of = qcutils.GetVariable(ds_of,'Fc',start=si_of,end=ei_of)
-    Fc_ep = qcutils.GetVariable(ds_ep,'Fc',start=si_ep,end=ei_ep)
+    us_of = pfp_utils.GetVariable(ds_of,'ustar',start=si_of,end=ei_of)
+    us_ep = pfp_utils.GetVariable(ds_ep,'ustar',start=si_ep,end=ei_ep)
+    Fh_of = pfp_utils.GetVariable(ds_of,'Fh',start=si_of,end=ei_of)
+    Fh_ep = pfp_utils.GetVariable(ds_ep,'Fh',start=si_ep,end=ei_ep)
+    Fe_of = pfp_utils.GetVariable(ds_of,'Fe',start=si_of,end=ei_of)
+    Fe_ep = pfp_utils.GetVariable(ds_ep,'Fe',start=si_ep,end=ei_ep)
+    Fc_of = pfp_utils.GetVariable(ds_of,'Fc',start=si_of,end=ei_of)
+    Fc_ep = pfp_utils.GetVariable(ds_ep,'Fc',start=si_ep,end=ei_ep)
     # copy the range check values from the OFQC attributes to the EP attributes
     for of, ep in zip([us_of, Fh_of, Fe_of, Fc_of], [us_ep, Fh_ep, Fe_ep, Fc_ep]):
         for item in ["rangecheck_upper", "rangecheck_lower"]:
             if item in of["Attr"]:
                 ep["Attr"][item] = of["Attr"][item]
     # apply QC to the EddyPro data
-    qcck.ApplyRangeCheckToVariable(us_ep)
-    qcck.ApplyRangeCheckToVariable(Fc_ep)
-    qcck.ApplyRangeCheckToVariable(Fe_ep)
-    qcck.ApplyRangeCheckToVariable(Fh_ep)
+    pfp_ck.ApplyRangeCheckToVariable(us_ep)
+    pfp_ck.ApplyRangeCheckToVariable(Fc_ep)
+    pfp_ck.ApplyRangeCheckToVariable(Fe_ep)
+    pfp_ck.ApplyRangeCheckToVariable(Fh_ep)
     # plot the comparison
     plt.ion()
     fig = plt.figure(1,figsize=(8,8))
-    qcplot.xyplot(us_ep["Data"],us_of["Data"],sub=[2,2,1],regr=2,xlabel='u*_EP (m/s)',ylabel='u*_OF (m/s)')
-    qcplot.xyplot(Fh_ep["Data"],Fh_of["Data"],sub=[2,2,2],regr=2,xlabel='Fh_EP (W/m2)',ylabel='Fh_OF (W/m2)')
-    qcplot.xyplot(Fe_ep["Data"],Fe_of["Data"],sub=[2,2,3],regr=2,xlabel='Fe_EP (W/m2)',ylabel='Fe_OF (W/m2)')
-    qcplot.xyplot(Fc_ep["Data"],Fc_of["Data"],sub=[2,2,4],regr=2,xlabel='Fc_EP (umol/m2/s)',ylabel='Fc_OF (umol/m2/s)')
+    pfp_plot.xyplot(us_ep["Data"],us_of["Data"],sub=[2,2,1],regr=2,xlabel='u*_EP (m/s)',ylabel='u*_OF (m/s)')
+    pfp_plot.xyplot(Fh_ep["Data"],Fh_of["Data"],sub=[2,2,2],regr=2,xlabel='Fh_EP (W/m2)',ylabel='Fh_OF (W/m2)')
+    pfp_plot.xyplot(Fe_ep["Data"],Fe_of["Data"],sub=[2,2,3],regr=2,xlabel='Fe_EP (W/m2)',ylabel='Fe_OF (W/m2)')
+    pfp_plot.xyplot(Fc_ep["Data"],Fc_of["Data"],sub=[2,2,4],regr=2,xlabel='Fc_EP (umol/m2/s)',ylabel='Fc_OF (umol/m2/s)')
     plt.tight_layout()
     plt.draw()
     plt.ioff()

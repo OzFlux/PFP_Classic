@@ -18,8 +18,8 @@ import sys
 import Tkinter, tkFileDialog
 import xlrd
 import pdb
-import qcio
-import qcutils
+import pfp_io
+import pfp_utils
 
 logger = logging.getLogger("pfp_log")
 
@@ -280,7 +280,7 @@ def cpd_main(cf):
             counts_df.loc[j, 'Total'] = counts_df.loc[j, 'Total'] + years_df.loc[j, 'seasons'] * 4
         if bootstrap_flag:
             progress = float(i)/float(d['num_bootstraps']-1)
-            qcutils.update_progress(progress)
+            pfp_utils.update_progress(progress)
 
     logger.info(' Finished change point detection for all bootstraps')
     logger.info(' Starting QC')
@@ -367,14 +367,14 @@ def CPD_run(cf):
     names["Year"] = "Year"
     # read the netcdf file
     logger.info(' Reading netCDF file '+file_in)
-    ds = qcio.nc_read_series(file_in)
+    ds = pfp_io.nc_read_series(file_in)
     dates_list = ds.series["DateTime"]["Data"]
     nrecs = int(ds.globalattributes["nc_nrecs"])
     # now get the data
     d = {}
     f = {}
     for item in names.keys():
-        data,flag,attr = qcutils.GetSeries(ds,names[item])
+        data,flag,attr = pfp_utils.GetSeries(ds,names[item])
         d[item] = np.where(data==c.missing_value,np.nan,data)
         f[item] = flag
     # set all data to NaNs if any flag not 0 or 10
@@ -393,8 +393,8 @@ def CPD_run(cf):
     d['num_bootstraps']=int(cf['Options']['Num_bootstraps'])
     d['flux_period']=int(ds.globalattributes["time_step"])
     d['site_name']=ds.globalattributes["site_name"]
-    d["call_mode"]=qcutils.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive",mode="quiet")
-    d["show_plots"]=qcutils.get_keyvaluefromcf(cf,["Options"],"show_plots",default=True,mode="quiet")
+    d["call_mode"]=pfp_utils.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive",mode="quiet")
+    d["show_plots"]=pfp_utils.get_keyvaluefromcf(cf,["Options"],"show_plots",default=True,mode="quiet")
     d['plot_tclass'] = False
     if cf['Options']['Plot_TClass'] == 'True': d['plot_tclass'] = True
     if cf['Options']['Output_plots']=='True':

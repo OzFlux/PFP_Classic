@@ -6,7 +6,7 @@ import logging
 import numpy
 import matplotlib.pyplot as plt
 import os
-import qcutils
+import pfp_utils
 import scipy
 import sys
 import pdb
@@ -31,59 +31,59 @@ def get_configs_dict(cf,ds):
 #                    'plot_output_path': '/home/imchugh/Documents'}
     configs_dict = {}
     configs_dict["nan_value"] = int(c.missing_value)
-    opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
+    opt = pfp_utils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
                                      "minimum_temperature_spread",default=5)
     configs_dict["minimum_temperature_spread"] = int(opt)
-    opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
+    opt = pfp_utils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
                                      "step_size_days",default=5)
     configs_dict["step_size_days"] = int(opt)
-    opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
+    opt = pfp_utils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
                                      "window_size_days",default=15)
     configs_dict["window_size_days"] = int(opt)
-    opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
+    opt = pfp_utils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
                                      "minimum_percent_annual",default=30)
     configs_dict["minimum_pct_annual"] = int(opt)
-    opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
+    opt = pfp_utils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
                                      "minimum_percent_noct_window",default=20)
     configs_dict["minimum_pct_noct_window"] = int(opt)
-    #opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
+    #opt = pfp_utils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
                                      #"minimum_percent_day_window",
                                      #default=50)
     #configs_dict["minimum_pct_day_window"] = int(opt)
-    opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
+    opt = pfp_utils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
                                      "output_plots",default="False")
     configs_dict["output_plots"] = (opt=="True")
-    opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
+    opt = pfp_utils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
                                      "show_plots",default="False")
     configs_dict["show_plots"] = (opt=="True")
-    opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
+    opt = pfp_utils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
                                      "target",default="ER")
     configs_dict["target"] = str(opt)
-    opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
+    opt = pfp_utils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
                                      "drivers",default="['Ta']")
     configs_dict["drivers"] = ast.literal_eval(opt)[0]
-    opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
+    opt = pfp_utils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
                                      "output",default="ER_LT_all")
     configs_dict["output_label"] = opt
     configs_dict["output_results"] = True
     ts = int(ds.globalattributes["time_step"])
     configs_dict["measurement_interval"] = float(ts)/60.0
     configs_dict["QC_accept_code"] = 0
-    opt = qcutils.get_keyvaluefromcf(cf,["Files"],"plot_path",default="plots/")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["Files"],"plot_path",default="plots/")
     configs_dict["output_path"] = os.path.join(opt,"respiration/")
     return configs_dict
 
 def get_data_dict(ds,configs_dict):
     data = {}
     # NOTE: series are ndarrays not masked arrays
-    Fc,Fc_flag,a = qcutils.GetSeries(ds,"Fc")
+    Fc,Fc_flag,a = pfp_utils.GetSeries(ds,"Fc")
     target = configs_dict["target"]
-    ER,ER_flag,a = qcutils.GetSeries(ds,target)
-    Fsd,Fsd_flag,a = qcutils.GetSeries(ds,"Fsd")
+    ER,ER_flag,a = pfp_utils.GetSeries(ds,target)
+    Fsd,Fsd_flag,a = pfp_utils.GetSeries(ds,"Fsd")
     T_label = configs_dict["drivers"]
-    T,T_flag,a = qcutils.GetSeries(ds,T_label)
-    VPD,VPD_flag,a = qcutils.GetSeries(ds,"VPD")
-    ustar,ustar_flag,a = qcutils.GetSeries(ds,"ustar")
+    T,T_flag,a = pfp_utils.GetSeries(ds,T_label)
+    VPD,VPD_flag,a = pfp_utils.GetSeries(ds,"VPD")
+    ustar,ustar_flag,a = pfp_utils.GetSeries(ds,"ustar")
     # replace c.missing_value with numpy.nan
     Fc = numpy.where((Fc_flag!=0)|(Fc==c.missing_value),
                      numpy.nan,Fc)
@@ -359,7 +359,7 @@ def rpLT_createdict(cf,ds,series):
     Date October 2015
     """
     # get the section of the control file containing the series
-    section = qcutils.get_cfsection(cf,series=series,mode="quiet")
+    section = pfp_utils.get_cfsection(cf,series=series,mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
         logger.error("ERUsingLloydTaylor: Series "+series+" not found in control file, skipping ...")
@@ -368,7 +368,7 @@ def rpLT_createdict(cf,ds,series):
     driver_list = ast.literal_eval(cf[section][series]["ERUsingLloydTaylor"]["drivers"])
     target = cf[section][series]["ERUsingLloydTaylor"]["target"]
     for label in driver_list:
-        data,flag,attr = qcutils.GetSeriesasMA(ds,label)
+        data,flag,attr = pfp_utils.GetSeriesasMA(ds,label)
         if numpy.ma.count_masked(data)!=0:
             logger.error("ERUsingLloydTaylor: driver "+label+" contains missing data, skipping target "+target)
             return
@@ -377,7 +377,7 @@ def rpLT_createdict(cf,ds,series):
     # site name
     rpLT_info["site_name"] = ds.globalattributes["site_name"]
     # source series for ER
-    opt = qcutils.get_keyvaluefromcf(cf, [section,series,"ERUsingLloydTaylor"], "source", default="Fc")
+    opt = pfp_utils.get_keyvaluefromcf(cf, [section,series,"ERUsingLloydTaylor"], "source", default="Fc")
     rpLT_info["source"] = opt
     # target series name
     rpLT_info["target"] = cf[section][series]["ERUsingLloydTaylor"]["target"]
@@ -395,8 +395,8 @@ def rpLT_createdict(cf,ds,series):
     rpLT_info["configs_dict"] = get_configs_dict(cf,ds)
     # create an empty series in ds if the output series doesn't exist yet
     if rpLT_info["output"] not in ds.series.keys():
-        data,flag,attr = qcutils.MakeEmptySeries(ds,rpLT_info["output"])
-        qcutils.CreateSeries(ds,rpLT_info["output"],data,flag,attr)
+        data,flag,attr = pfp_utils.MakeEmptySeries(ds,rpLT_info["output"])
+        pfp_utils.CreateSeries(ds,rpLT_info["output"],data,flag,attr)
     # create the merge directory in the data structure
     if "merge" not in dir(ds): ds.merge = {}
     if "standard" not in ds.merge.keys(): ds.merge["standard"] = {}
@@ -408,8 +408,8 @@ def rpLT_createdict(cf,ds,series):
     ds.merge["standard"][series]["source"] = ast.literal_eval(cf[section][series]["MergeSeries"]["Source"])
     # create an empty series in ds if the output series doesn't exist yet
     if ds.merge["standard"][series]["output"] not in ds.series.keys():
-        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.merge["standard"][series]["output"])
-        qcutils.CreateSeries(ds,ds.merge["standard"][series]["output"],data,flag,attr)
+        data,flag,attr = pfp_utils.MakeEmptySeries(ds,ds.merge["standard"][series]["output"])
+        pfp_utils.CreateSeries(ds,ds.merge["standard"][series]["output"],data,flag,attr)
     return rpLT_info
 
 def rpLT_initplot(**kwargs):
@@ -435,10 +435,10 @@ def rpLT_plot(pd,ds,series,driverlist,targetlabel,outputlabel,LT_info,si=0,ei=-1
     else:
         dt = ds.series['DateTime']['Data'][si:ei+1]
     xdt = numpy.array(dt)
-    Hdh,f,a = qcutils.GetSeriesasMA(ds,'Hdh',si=si,ei=ei)
+    Hdh,f,a = pfp_utils.GetSeriesasMA(ds,'Hdh',si=si,ei=ei)
     # get the observed and modelled values
-    obs,f,a = qcutils.GetSeriesasMA(ds,targetlabel,si=si,ei=ei)
-    mod,f,a = qcutils.GetSeriesasMA(ds,outputlabel,si=si,ei=ei)
+    obs,f,a = pfp_utils.GetSeriesasMA(ds,targetlabel,si=si,ei=ei)
+    mod,f,a = pfp_utils.GetSeriesasMA(ds,outputlabel,si=si,ei=ei)
     # make the figure
     if LT_info["show_plots"]:
         plt.ion()
@@ -454,13 +454,13 @@ def rpLT_plot(pd,ds,series,driverlist,targetlabel,outputlabel,LT_info,si=0,ei=-1
     # get the diurnal stats of the observations
     mask = numpy.ma.mask_or(obs.mask,mod.mask)
     obs_mor = numpy.ma.array(obs,mask=mask)
-    dstats = qcutils.get_diurnalstats(dt,obs_mor,LT_info)
+    dstats = pfp_utils.get_diurnalstats(dt,obs_mor,LT_info)
     ax1.plot(dstats["Hr"],dstats["Av"],'b-',label="Obs")
     # get the diurnal stats of all SOLO predictions
-    dstats = qcutils.get_diurnalstats(dt,mod,LT_info)
+    dstats = pfp_utils.get_diurnalstats(dt,mod,LT_info)
     ax1.plot(dstats["Hr"],dstats["Av"],'r-',label="LT(all)")
     mod_mor = numpy.ma.masked_where(numpy.ma.getmaskarray(obs)==True,mod,copy=True)
-    dstats = qcutils.get_diurnalstats(dt,mod_mor,LT_info)
+    dstats = pfp_utils.get_diurnalstats(dt,mod_mor,LT_info)
     ax1.plot(dstats["Hr"],dstats["Av"],'g-',label="LT(obs)")
     plt.xlim(0,24)
     plt.xticks([0,6,12,18,24])
@@ -494,16 +494,16 @@ def rpLT_plot(pd,ds,series,driverlist,targetlabel,outputlabel,LT_info,si=0,ei=-1
     plt.figtext(0.725,0.200,'No. filled')
     plt.figtext(0.825,0.200,str(numfilled))
     plt.figtext(0.725,0.175,'Slope')
-    plt.figtext(0.825,0.175,str(qcutils.round2sig(coefs[0],sig=4)))
+    plt.figtext(0.825,0.175,str(pfp_utils.round2sig(coefs[0],sig=4)))
     LT_info["er"][series]["results"]["m_ols"].append(coefs[0])
     plt.figtext(0.725,0.150,'Offset')
-    plt.figtext(0.825,0.150,str(qcutils.round2sig(coefs[1],sig=4)))
+    plt.figtext(0.825,0.150,str(pfp_utils.round2sig(coefs[1],sig=4)))
     LT_info["er"][series]["results"]["b_ols"].append(coefs[1])
     plt.figtext(0.725,0.125,'r')
-    plt.figtext(0.825,0.125,str(qcutils.round2sig(r[0][1],sig=4)))
+    plt.figtext(0.825,0.125,str(pfp_utils.round2sig(r[0][1],sig=4)))
     LT_info["er"][series]["results"]["r"].append(r[0][1])
     plt.figtext(0.725,0.100,'RMSE')
-    plt.figtext(0.825,0.100,str(qcutils.round2sig(rmse,sig=4)))
+    plt.figtext(0.825,0.100,str(pfp_utils.round2sig(rmse,sig=4)))
     LT_info["er"][series]["results"]["RMSE"].append(rmse)
     var_obs = numpy.ma.var(obs)
     LT_info["er"][series]["results"]["Var (obs)"].append(var_obs)
@@ -529,7 +529,7 @@ def rpLT_plot(pd,ds,series,driverlist,targetlabel,outputlabel,LT_info,si=0,ei=-1
         this_bottom = pd["ts_bottom"] + i*pd["ts_height"]
         rect = [pd["margin_left"],this_bottom,pd["ts_width"],pd["ts_height"]]
         ts_axes.append(plt.axes(rect,sharex=ts_axes[0]))
-        data,flag,attr = qcutils.GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
+        data,flag,attr = pfp_utils.GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
         data_notgf = numpy.ma.masked_where(flag!=0,data)
         data_gf = numpy.ma.masked_where(flag==0,data)
         ts_axes[i].plot(xdt,data_notgf,'b-')
