@@ -772,7 +772,12 @@ def CalculateMoninObukhovLength(ds):
     # get the required meteorological variables
     Ta = qcutils.GetVariable(ds, "Ta")
     ps = qcutils.GetVariable(ds, "ps")
-    vp = qcutils.GetVariable(ds, "e")
+    if "e" in ds.series.keys():
+        vp = qcutils.GetVariable(ds, "e")
+    elif "Ah" in ds.series.keys():
+        vp = qcutils.create_empty_variable("e", nrecs)
+        Ah = qcutils.GetVariable(ds, "Ah")
+        vp["Data"] = mf.vapourpressure(Ah["Data"], Ta["Data"])
     # get the required fluxes
     ustar = qcutils.GetVariable(ds, "ustar")
     Fh = qcutils.GetVariable(ds, "Fh")

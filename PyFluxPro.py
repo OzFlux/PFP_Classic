@@ -1,12 +1,6 @@
-#import ast
-#import copy
 import datetime
-#import logging
 import matplotlib
 matplotlib.use('TkAgg')
-#matplotlib.use('Qt4Agg')
-#import numpy
-import ntpath
 import time
 import Tkinter as tk
 import tkMessageBox
@@ -23,6 +17,8 @@ import cfg
 import qcclim
 import qccpd
 import qcgf
+import qcfp
+#import qcwr
 import qcio
 import qclog
 import qcls
@@ -182,6 +178,10 @@ class qcgui(tk.Tk):
         plotmenu.add_cascade(label="Fingerprint",menu=fpmenu)
         plotmenu.add_command(label="Quick check",command=self.do_plotquickcheck)
         plotmenu.add_command(label="Years check",command=self.option_not_implemented)
+        # === plot windrose climatology
+        plotmenu.add_separator()
+        plotmenu.add_command(label="Windrose climatology",command=self.do_plotwindroseclimatology)
+        # ===
         plotmenu.add_separator()
         plotmenu.add_command(label="Close plots",command=self.do_closeplotwindows)
         menubar.add_cascade(label="Plot",menu=plotmenu)
@@ -201,6 +201,13 @@ class qcgui(tk.Tk):
         mptmenu.add_command(label="Standard",command=lambda:self.do_mpt(mode="standard"))
         mptmenu.add_command(label="Custom",command=lambda:self.do_mpt(mode="custom"))
         utilsmenu.add_cascade(label="u* threshold (MPT)",menu=mptmenu)
+
+        # footprint menu
+        footprintmenu = tk.Menu(menubar,tearoff=0)
+        footprintmenu.add_command(label="Kljun et al., 2015",command=lambda:self.do_footprint(mode="kljun"))
+        footprintmenu.add_command(label="Kormann & Meixner, 2001",command=lambda:self.do_footprint(mode="kormei"))
+        utilsmenu.add_cascade(label="Footprint",menu=footprintmenu)
+
         menubar.add_cascade(label="Utilities",menu=utilsmenu)
         # and the "Help" menu
         helpmenu = tk.Menu(menubar,tearoff=0)
@@ -259,16 +266,6 @@ class qcgui(tk.Tk):
         self.do_progress(text='Waiting for input ...')             # tell the user what we're doing
         logger.info(' Waiting for input ...')
 
-    def do_compare_eddypro(self):
-        """
-        Calls qcclim.compare_ep
-        Compares the results OzFluxQC (L3) with those from EddyPro (full output).
-        """
-        self.do_progress(text='Comparing EddyPro and OzFlux results ...')
-        qcclim.compare_eddypro()
-        self.do_progress(text='Finished comparing EddyPro and OzFlux')
-        logger.info(' Finished comparing EddyPro and OzFlux')
-
     def do_cpd(self,mode="standard"):
         """
         Calls qccpd.cpd_main
@@ -311,6 +308,39 @@ class qcgui(tk.Tk):
         self.do_progress(text='Finished estimating u* threshold')
         logger.info(' Finished estimating u* threshold')
         logger.info("")
+
+# ### footprint start
+
+    def do_footprint(self,mode="kljun"):
+        """
+        Calls qcfp.footprint_main
+        kljun  = Calculates the Kljun et al., 2015 footprint climatology.
+        kormei = Calculates the Korman&Meixner, 2001 footprint climatology.
+        """
+        logger.info(' Starting footprint climatology')
+        self.do_progress(text=' Calculating footprint climatology')
+        if mode=="kljun":
+            self.do_progress(text='Loading Kljun et al. control file ...')
+            cf = qcio.load_controlfile(path='controlfiles')
+            if len(cf)==0:
+                self.do_progress(text='Waiting for input ...')
+                return
+        elif mode=="kormei":
+            self.do_progress(text='Loading Kormann & Meixner control file ...')
+            cf = qcio.load_controlfile(path='controlfiles')
+            if len(cf)==0:
+                self.do_progress(text='Waiting for input ...')
+                return
+        self.do_progress(text='Doing the '+mode+' footprint climatology')
+        if "Options" not in cf:
+            cf["Options"]={}
+        cf["Options"]["call_mode"] = "interactive"
+        qcfp.footprint_main(cf,mode)
+        self.do_progress(text='Finished calculating footprint')
+        logger.info(' Finished calculating footprint')
+        logger.info("")
+
+# ### footprint end
 
     def do_helpcontents(self):
         tkMessageBox.showinfo("Obi Wan says ...","Read the source, Luke!")
@@ -1034,6 +1064,24 @@ class qcgui(tk.Tk):
         qcrp.L6_summary(cf,ds6)
         self.do_progress(text='Finished plotting L6 summary')
         logger.info(' Finished plotting L6 summary, check the GUI')
+
+    # === plot windroses
+    def do_plotwindroseclimatology(self):
+        """
+           Plot windrose climatology. Set annual, monthly, or special timestep
+        """
+        cf = qcio.load_controlfile(path='controlfiles')
+        if len(cf)==0:
+            self.do_progress(text='Waiting for input ...')
+            return
+        if "Options" not in cf: cf["Options"]={}
+        cf["Options"]["call_mode"] = "interactive"
+        wrfilename = qcio.get_outfilenamefromcf(cf)
+        qcwr.windrose_main(cf)
+        self.do_progress(text='Finished calculating windrose climatology')
+        logger.info(' Finished calculating windrose climatology')
+        logger.info("")
+        # ===
 
     def do_progress(self,text):
         """

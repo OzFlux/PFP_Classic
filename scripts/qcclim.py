@@ -8,7 +8,6 @@ import sys
 import time
 # 3rd party modules
 from scipy.interpolate import griddata
-import matplotlib.pyplot as plt
 import numpy
 import xlwt
 # PFP modules
@@ -380,50 +379,3 @@ def climatology(cf):
             continue
     logger.info(" Saving Excel file "+os.path.split(xl_filename)[1])
     xlFile.save(xl_filename)
-
-def compare_eddypro():
-    epname = qcio.get_filename_dialog(title='Choose an EddyPro full output file')
-    ofname = qcio.get_filename_dialog(title='Choose an L3 output file')
-
-    ds_ep = qcio.read_eddypro_full(epname)
-    ds_of = qcio.nc_read_series(ofname)
-
-    dt_ep = ds_ep.series['DateTime']['Data']
-    dt_of = ds_of.series['DateTime']['Data']
-
-    start_datetime = max([dt_ep[0],dt_of[0]])
-    end_datetime = min([dt_ep[-1],dt_of[-1]])
-
-    si_of = qcutils.GetDateIndex(dt_of, str(start_datetime), ts=30, default=0, match='exact')
-    ei_of = qcutils.GetDateIndex(dt_of, str(end_datetime), ts=30, default=len(dt_of), match='exact')
-    si_ep = qcutils.GetDateIndex(dt_ep, str(start_datetime), ts=30, default=0, match='exact')
-    ei_ep = qcutils.GetDateIndex(dt_ep, str(end_datetime), ts=30, default=len(dt_ep), match='exact')
-
-    us_of = qcutils.GetVariable(ds_of,'ustar',start=si_of,end=ei_of)
-    us_ep = qcutils.GetVariable(ds_ep,'ustar',start=si_ep,end=ei_ep)
-    Fh_of = qcutils.GetVariable(ds_of,'Fh',start=si_of,end=ei_of)
-    Fh_ep = qcutils.GetVariable(ds_ep,'Fh',start=si_ep,end=ei_ep)
-    Fe_of = qcutils.GetVariable(ds_of,'Fe',start=si_of,end=ei_of)
-    Fe_ep = qcutils.GetVariable(ds_ep,'Fe',start=si_ep,end=ei_ep)
-    Fc_of = qcutils.GetVariable(ds_of,'Fc',start=si_of,end=ei_of)
-    Fc_ep = qcutils.GetVariable(ds_ep,'Fc',start=si_ep,end=ei_ep)
-    # copy the range check values from the OFQC attributes to the EP attributes
-    for of, ep in zip([us_of, Fh_of, Fe_of, Fc_of], [us_ep, Fh_ep, Fe_ep, Fc_ep]):
-        for item in ["rangecheck_upper", "rangecheck_lower"]:
-            if item in of["Attr"]:
-                ep["Attr"][item] = of["Attr"][item]
-    # apply QC to the EddyPro data
-    qcck.ApplyRangeCheckToVariable(us_ep)
-    qcck.ApplyRangeCheckToVariable(Fc_ep)
-    qcck.ApplyRangeCheckToVariable(Fe_ep)
-    qcck.ApplyRangeCheckToVariable(Fh_ep)
-    # plot the comparison
-    plt.ion()
-    fig = plt.figure(1,figsize=(8,8))
-    qcplot.xyplot(us_ep["Data"],us_of["Data"],sub=[2,2,1],regr=2,xlabel='u*_EP (m/s)',ylabel='u*_OF (m/s)')
-    qcplot.xyplot(Fh_ep["Data"],Fh_of["Data"],sub=[2,2,2],regr=2,xlabel='Fh_EP (W/m2)',ylabel='Fh_OF (W/m2)')
-    qcplot.xyplot(Fe_ep["Data"],Fe_of["Data"],sub=[2,2,3],regr=2,xlabel='Fe_EP (W/m2)',ylabel='Fe_OF (W/m2)')
-    qcplot.xyplot(Fc_ep["Data"],Fc_of["Data"],sub=[2,2,4],regr=2,xlabel='Fc_EP (umol/m2/s)',ylabel='Fc_OF (umol/m2/s)')
-    plt.tight_layout()
-    plt.draw()
-    plt.ioff()
