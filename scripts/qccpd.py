@@ -57,7 +57,7 @@ def fit(temp_df):
         # Operational (b) model
         temp_df['ustar_alt']=temp_df['ustar'] # Add dummy variable to df
         temp_df['ustar_alt'].iloc[i+1:]=temp_df['ustar_alt'].iloc[i]
-        reg_params=np.linalg.lstsq(temp_df[['int','ustar_alt']],temp_df['Fc'])[0] # Do linear regression
+        reg_params=np.linalg.lstsq(temp_df[['int','ustar_alt']],temp_df['Fc'],rcond=-1)[0] # Do linear regression
         yHat=reg_params[0]+reg_params[1]*temp_df['ustar_alt'] # Calculate the predicted values for y
         SSE_full=((temp_df['Fc']-yHat)**2).sum() # Calculate SSE
         f_b_array[i]=(SSE_null_b-SSE_full)/(SSE_full/(50-2)) # Calculate and store F-score
@@ -66,7 +66,7 @@ def fit(temp_df):
         temp_df['ustar_alt1']=temp_df['ustar']
         temp_df['ustar_alt1'].iloc[i+1:]=temp_df['ustar_alt1'].iloc[i]
         temp_df['ustar_alt2']=(temp_df['ustar']-temp_df['ustar'].iloc[i])*np.concatenate([np.zeros(i+1),np.ones(50-(i+1))])
-        reg_params=np.linalg.lstsq(temp_df[['int','ustar_alt1','ustar_alt2']],temp_df['Fc'])[0] # Do piecewise linear regression (multiple regression with dummy)
+        reg_params=np.linalg.lstsq(temp_df[['int','ustar_alt1','ustar_alt2']],temp_df['Fc'],rcond=-1)[0] # Do piecewise linear regression (multiple regression with dummy)
         yHat=reg_params[0]+reg_params[1]*temp_df['ustar_alt1']+reg_params[2]*temp_df['ustar_alt2'] # Calculate the predicted values for y
         SSE_full=((temp_df['Fc']-yHat)**2).sum() # Calculate SSE
         f_a_array[i]=(SSE_null_a-SSE_full)/(SSE_full/(50-2)) # Calculate and store F-score
@@ -90,7 +90,7 @@ def fit(temp_df):
     # b model
     temp_df['ustar_alt']=temp_df['ustar']
     temp_df['ustar_alt'].iloc[change_point_b+1:]=ustar_threshold_b
-    reg_params=np.linalg.lstsq(temp_df[['int','ustar_alt']],temp_df['Fc'])[0]
+    reg_params=np.linalg.lstsq(temp_df[['int','ustar_alt']],temp_df['Fc'],rcond=-1)[0]
     b0=reg_params[0]
     b1=reg_params[1]
 
