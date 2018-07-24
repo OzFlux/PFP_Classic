@@ -1249,7 +1249,7 @@ def xyplot(x,y,sub=[1,1,1],regr=0,thru0=0,title=None,xlabel=None,ylabel=None,fna
             logger.info("xyplot: nothing to plot!")
     if thru0!=0:
         x = x[:,numpy.newaxis]
-        a, _, _, _ = numpy.linalg.lstsq(x, y)
+        a, _, _, _ = numpy.linalg.lstsq(x, y,rcond=-1)
         eqnstr = 'y = %.3fx'%(a)
         plt.text(0.5,0.875,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
     plt.subplots_adjust(wspace=wspace,hspace=hspace)
