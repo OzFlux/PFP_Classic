@@ -13,7 +13,7 @@ Fund."""
 [Options]
     MaxGapInterpolate   = 0
 
-[[ER]
+[ER]
    [[ER_SOLO]]
         [[[ERUsingSOLO]]]
             target ="ER"
