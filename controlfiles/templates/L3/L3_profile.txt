@@ -1,0 +1,7 @@
+[Options]
+    ApplyFcStorage = Yes
+
+[Variables]
+    [[Fc_storage]]
+        [[[MergeSeries]]]
+            Source = "['Fc_profile', 'Fc_single']"

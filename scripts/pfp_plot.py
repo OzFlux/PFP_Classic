@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import meteorologicalfunctions as mf
 import numpy
 import os
+from scipy.interpolate import Akima1DInterpolator
 import statsmodels.api as sm
 import sys
 import pfp_ck
@@ -129,6 +130,10 @@ def pltfingerprint_createdict(cf,ds):
             fp_info["variables"][var]["Upper"] = float(cf["Variables"][var]["Upper"])
         else:
             fp_info["variables"][var]["Upper"] = c.large_value
+        if "Interpolate" in cf["Variables"][var]:
+            fp_info["variables"][var]["Interpolate"] = cf["Variables"][var]["Interpolate"]
+        else:
+            fp_info["variables"][var]["Interpolate"] = "No"
     # get the start and end datetimes for all files and find the overlap period
     var_list = fp_info["variables"].keys()
     ds_0 = ds[fp_info["variables"][var_list[0]]["in_filename"]]
@@ -233,6 +238,13 @@ def plot_fingerprint(cf):
                     continue
             data,flag,attr = pfp_utils.GetSeriesasMA(ds[infilename],nc_varname,si=si,ei=ei)
             data = pfp_ck.cliptorange(data,fp_info["variables"][var]["Lower"],fp_info["variables"][var]["Upper"])
+            if fp_info["variables"][var]["Interpolate"] == "Yes":
+                time,_,_ = pfp_utils.GetSeriesasMA(ds[infilename], "time", si=si, ei=ei)
+                time = numpy.ma.masked_where(data.mask == True, time)
+                data_int = numpy.ma.compressed(data)
+                time_int = numpy.ma.compressed(time)
+                int_fn = Akima1DInterpolator(time_int, data_int)
+                data = int_fn(time)
             data_daily = data.reshape(nDays,nPerDay)
             units = str(ds[infilename].series[nc_varname]['Attr']['units'])
             label = var + ' (' + units + ')'

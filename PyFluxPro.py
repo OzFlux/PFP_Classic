@@ -2,8 +2,10 @@
 #import copy
 import datetime
 #import logging
-import matplotlib
-matplotlib.use('TkAgg')
+import matplotlib as mpl
+import matplotlib.style
+mpl.use('TkAgg')
+mpl.style.use('classic')
 #matplotlib.use('Qt4Agg')
 #import numpy
 import ntpath
