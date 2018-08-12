@@ -1,6 +1,6 @@
 import constants as c
 import numpy
-from qcutils import SeriestoMA, MAtoSeries
+from pfp_utils import SeriestoMA, MAtoSeries
 
 def absolutehumidityfromRH(Ta,RH):
     # convert to masked arrays
@@ -11,7 +11,7 @@ def absolutehumidityfromRH(Ta,RH):
     vp = RH * VPsat / float(100)
     ah = float(1000000) * vp / ((Ta + 273.15) * c.Rv)
     # convert back to ndarray if input is not a masked array
-    if WasND: ah, WasMA = MAtoSeries(ah)    
+    if WasND: ah, WasMA = MAtoSeries(ah)
     return ah
 
 def co2_ppmfrommgpm3(c_mgpm3,T,p):
@@ -232,7 +232,7 @@ def RHfromabsolutehumidity(Ah,Ta):
     vp = vapourpressure(Ah,Ta)
     RH = float(100)*vp/VPsat
     # convert back to ndarray if input is not a masked array
-    if WasND: RH, WasMA = MAtoSeries(RH)    
+    if WasND: RH, WasMA = MAtoSeries(RH)
     return RH
 
 def RHfromdewpoint(Td,Ta):
@@ -246,7 +246,7 @@ def RHfromdewpoint(Td,Ta):
     # do the job
     RH = 100*10**(7.591386*(Td/(Td+240.7263)-Ta/(Ta+240.7263)))
     # convert back to ndarray if input is not a masked array
-    if WasND: RH, WasMA = MAtoSeries(RH)    
+    if WasND: RH, WasMA = MAtoSeries(RH)
     return RH
 
 def RHfromspecifichumidity(q,Ta,ps):
@@ -262,7 +262,7 @@ def RHfromspecifichumidity(q,Ta,ps):
     VPsat = es(Ta)
     RH = float(100)*q*(c.Md/c.Mv)*ps/VPsat
     # convert back to ndarray if input is not a masked array
-    if WasND: RH, WasMA = MAtoSeries(RH)    
+    if WasND: RH, WasMA = MAtoSeries(RH)
     return RH
 
 def densitytimesspecificheat(rhow,Cpw,rhoa,Cpa):

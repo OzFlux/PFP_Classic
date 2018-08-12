@@ -6,7 +6,7 @@ def init_logger(logger_name="pfp_log", file_handler="pfp.log"):
     Purpose:
      Returns a logger object.
     Usage:
-     logger = qclog.init_logger()
+     logger = pfp_log.init_logger()
     Author: PRI with acknowledgement to James Cleverly
     Date: September 2016
     """

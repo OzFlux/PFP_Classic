@@ -15,10 +15,10 @@ import numpy
 import pylab
 # PFP modules
 import constants as c
-import qcck
-import qcio
-import qcts
-import qcutils
+import pfp_ck
+import pfp_io
+import pfp_ts
+import pfp_utils
 
 logger = logging.getLogger("pfp_log")
 
@@ -46,7 +46,7 @@ def GapFillUsingSOLO(cf, dsa, dsb):
                  "startdate":startdate.strftime("%Y-%m-%d %H:%M"),
                  "enddate":enddate.strftime("%Y-%m-%d %H:%M")}
     # check to see if this is a batch or an interactive run
-    call_mode = qcutils.get_keyvaluefromcf(cf, ["Options"], "call_mode", default="interactive")
+    call_mode = pfp_utils.get_keyvaluefromcf(cf, ["Options"], "call_mode", default="interactive")
     solo_info["call_mode"]= call_mode
     if call_mode.lower()=="interactive":
         solo_info["show_plots"] = True
@@ -186,12 +186,12 @@ def gfSOLO_autocomplete(dsa, dsb, solo_info):
     for output in dsb.solo.keys():
         not_enough_points = False
         series = dsb.solo[output]["label_tower"]
-        data_solo, _, _ = qcutils.GetSeriesasMA(dsb, output)
+        data_solo, _, _ = pfp_utils.GetSeriesasMA(dsb, output)
         if numpy.ma.count(data_solo)==0:
             continue
         mask_solo = numpy.ma.getmaskarray(data_solo)
-        gapstartend = qcutils.contiguous_regions(mask_solo)
-        data_obs, _, _ = qcutils.GetSeriesasMA(dsb, series)
+        gapstartend = pfp_utils.contiguous_regions(mask_solo)
+        data_obs, _, _ = pfp_utils.GetSeriesasMA(dsb, series)
         for si_gap, ei_gap in gapstartend:
             min_points = int((ei_gap-si_gap)*solo_info["min_percent"]/100)
             num_good_points = numpy.ma.count(data_obs[si_gap:ei_gap])
@@ -219,7 +219,7 @@ def gfSOLO_done(ds,solo_gui,solo_info):
     # plot the summary statistics if gap filling was done manually
     if solo_gui.peropt.get()==1:
         # write Excel spreadsheet with fit statistics
-        qcio.xl_write_SOLOStats(ds)
+        pfp_io.xl_write_SOLOStats(ds)
         # plot the summary statistics
         gfSOLO_plotsummary(ds,solo_info)
     # destroy the SOLO GUI
@@ -270,7 +270,7 @@ def gfSOLO_main(dsa,dsb,solo_info,output_list=[]):
     # read the control file again, this allows the contents of the control file to
     # be changed with the SOLO GUI still displayed
     cfname = dsb.globalattributes["controlfile_name"]
-    cf = qcio.get_controlfilecontents(cfname,mode="quiet")
+    cf = pfp_io.get_controlfilecontents(cfname,mode="quiet")
     solo_info["plot_path"] = cf["Files"]["plot_path"]
     # put the control file object in the solo_info dictionary
     dsb.cf = cf.copy()
@@ -281,8 +281,8 @@ def gfSOLO_main(dsa,dsb,solo_info,output_list=[]):
     ldt = dsb.series["DateTime"]["Data"]
     xldt = dsb.series["xlDateTime"]["Data"]
     # get the start and end datetime indices
-    si = qcutils.GetDateIndex(ldt,startdate,ts=ts,default=0,match="exact")
-    ei = qcutils.GetDateIndex(ldt,enddate,ts=ts,default=len(ldt)-1,match="exact")
+    si = pfp_utils.GetDateIndex(ldt,startdate,ts=ts,default=0,match="exact")
+    ei = pfp_utils.GetDateIndex(ldt,enddate,ts=ts,default=len(ldt)-1,match="exact")
     # check the start and end indices
     if si >= ei:
         msg = " GapFillUsingSOLO: end datetime index ("+str(ei)+") smaller that start ("+str(si)+")"
@@ -306,20 +306,20 @@ def gfSOLO_main(dsa,dsb,solo_info,output_list=[]):
         # get the target series label
         series = dsb.solo[output]["label_tower"]
         # clean up the target series if required
-        variable = qcutils.GetVariable(dsb, series)
-        qcck.UpdateVariableAttributes_QC(cf, variable)
-        qcck.ApplyQCChecks(variable)
-        qcutils.CreateVariable(dsb, variable)
+        variable = pfp_utils.GetVariable(dsb, series)
+        pfp_ck.UpdateVariableAttributes_QC(cf, variable)
+        pfp_ck.ApplyQCChecks(variable)
+        pfp_utils.CreateVariable(dsb, variable)
         # check to see if we are gap filling L5 or L4
         if dsb.globalattributes["nc_level"].lower()=="l4":
             for driver in dsb.solo[output]["drivers"]:
                 for mlist in dsb.merge.keys():
                     if driver in dsb.merge[mlist]:
                         srclist = dsb.merge[mlist][driver]["source"]
-                qcts.do_mergeseries(dsb,driver,srclist,mode="quiet")
+                pfp_ts.do_mergeseries(dsb,driver,srclist,mode="quiet")
         dsb.solo[output]["results"]["startdate"].append(xldt[si])
         dsb.solo[output]["results"]["enddate"].append(xldt[ei])
-        d,f,a = qcutils.GetSeriesasMA(dsb,series,si=si,ei=ei)
+        d,f,a = pfp_utils.GetSeriesasMA(dsb,series,si=si,ei=ei)
         if numpy.ma.count(d)<solo_info["min_points"]:
             logger.warning("gfSOLO: Less than "+str(solo_info["min_points"])+" points available for series "+series+" ...")
             dsb.solo[output]["results"]["No. points"].append(float(0))
@@ -372,10 +372,10 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=
     ts = int(dsb.globalattributes['time_step'])
     # get a local copy of the datetime series
     xdt = dsb.series["DateTime"]["Data"][si:ei+1]
-    Hdh,f,a = qcutils.GetSeriesasMA(dsb,'Hdh',si=si,ei=ei)
+    Hdh,f,a = pfp_utils.GetSeriesasMA(dsb,'Hdh',si=si,ei=ei)
     # get the observed and modelled values
-    obs,f,a = qcutils.GetSeriesasMA(dsb,targetlabel,si=si,ei=ei)
-    mod,f,a = qcutils.GetSeriesasMA(dsb,outputlabel,si=si,ei=ei)
+    obs,f,a = pfp_utils.GetSeriesasMA(dsb,targetlabel,si=si,ei=ei)
+    mod,f,a = pfp_utils.GetSeriesasMA(dsb,outputlabel,si=si,ei=ei)
     # make the figure
     if solo_info["show_plots"]:
         plt.ion()
@@ -452,16 +452,16 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=
     plt.figtext(0.65,0.075,'Iterations')
     plt.figtext(0.75,0.075,str(solo_info["iterations"]))
     plt.figtext(0.815,0.225,'Slope')
-    plt.figtext(0.915,0.225,str(qcutils.round2sig(coefs[0],sig=4)))
+    plt.figtext(0.915,0.225,str(pfp_utils.round2sig(coefs[0],sig=4)))
     dsb.solo[outputlabel]["results"]["m_ols"].append(trap_masked_constant(coefs[0]))
     plt.figtext(0.815,0.200,'Offset')
-    plt.figtext(0.915,0.200,str(qcutils.round2sig(coefs[1],sig=4)))
+    plt.figtext(0.915,0.200,str(pfp_utils.round2sig(coefs[1],sig=4)))
     dsb.solo[outputlabel]["results"]["b_ols"].append(trap_masked_constant(coefs[1]))
     plt.figtext(0.815,0.175,'r')
-    plt.figtext(0.915,0.175,str(qcutils.round2sig(r[0][1],sig=4)))
+    plt.figtext(0.915,0.175,str(pfp_utils.round2sig(r[0][1],sig=4)))
     dsb.solo[outputlabel]["results"]["r"].append(trap_masked_constant(r[0][1]))
     plt.figtext(0.815,0.150,'RMSE')
-    plt.figtext(0.915,0.150,str(qcutils.round2sig(rmse,sig=4)))
+    plt.figtext(0.915,0.150,str(pfp_utils.round2sig(rmse,sig=4)))
     dsb.solo[outputlabel]["results"]["RMSE"].append(trap_masked_constant(rmse))
     dsb.solo[outputlabel]["results"]["NMSE"].append(trap_masked_constant(nmse))
     var_obs = numpy.ma.var(obs)
@@ -489,7 +489,7 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=
         this_bottom = pd["ts_bottom"] + i*pd["ts_height"]
         rect = [pd["margin_left"],this_bottom,pd["ts_width"],pd["ts_height"]]
         ts_axes.append(plt.axes(rect,sharex=ts_axes[0]))
-        data,flag,attr = qcutils.GetSeriesasMA(dsb,ThisOne,si=si,ei=ei)
+        data,flag,attr = pfp_utils.GetSeriesasMA(dsb,ThisOne,si=si,ei=ei)
         data_notgf = numpy.ma.masked_where(flag!=0,data)
         data_gf = numpy.ma.masked_where(flag==0,data)
         ts_axes[i].plot(xdt,data_notgf,'b-')
@@ -538,8 +538,8 @@ def gfSOLO_plotcoveragelines(dsb,solo_info):
     plt.ylim([0,len(output_list)+1])
     plt.xlim([ldt[0],ldt[-1]])
     for output,series,n in zip(output_list,series_list,range(1,len(output_list)+1)):
-        data_output,f,a = qcutils.GetSeriesasMA(dsb,output)
-        data_series,f,a = qcutils.GetSeriesasMA(dsb,series)
+        data_output,f,a = pfp_utils.GetSeriesasMA(dsb,output)
+        data_series,f,a = pfp_utils.GetSeriesasMA(dsb,series)
         percent = 100*numpy.ma.count(data_series)/len(data_series)
         ylabel_right_list.append("{0:.0f}%".format(percent))
         ind_series = numpy.ma.ones(len(data_series))*float(n)
@@ -729,7 +729,7 @@ def gfSOLO_run_gui(dsa,dsb,solo_gui,solo_info):
         # now fill any remaining gaps
         gfSOLO_autocomplete(dsa,dsb,solo_info)
         # write Excel spreadsheet with fit statistics
-        qcio.xl_write_SOLOStats(dsb)
+        pfp_io.xl_write_SOLOStats(dsb)
         # plot the summary statistics
         gfSOLO_plotsummary(dsb,solo_info)
         gfSOLO_progress(solo_gui,"Finished auto (monthly) run ...")
@@ -762,7 +762,7 @@ def gfSOLO_run_gui(dsa,dsb,solo_gui,solo_info):
         # now fill any remaining gaps
         gfSOLO_autocomplete(dsa,dsb,solo_info)
         # write Excel spreadsheet with fit statistics
-        qcio.xl_write_SOLOStats(dsb)
+        pfp_io.xl_write_SOLOStats(dsb)
         # plot the summary statistics
         gfSOLO_plotsummary(dsb,solo_info)
         gfSOLO_progress(solo_gui,"Finished auto (days) run ...")
@@ -774,60 +774,60 @@ def gfSOLO_run_nogui(cf,dsa,dsb,solo_info):
     # populate the solo_info dictionary with things that will be useful
     # period option
     dt = dsb.series["DateTime"]["Data"]
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"period_option",default="manual",mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"period_option",default="manual",mode="quiet")
     if opt=="manual":
         solo_info["peropt"] = 1
-        sd = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="",mode="quiet")
+        sd = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="",mode="quiet")
         solo_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: solo_info["startdate"] = sd
-        ed = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"end_date",default="",mode="quiet")
+        ed = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"end_date",default="",mode="quiet")
         solo_info["enddate"] = dt[-1].strftime("%Y-%m-%d %H:%M")
         if len(ed)!=0: solo_info["enddate"] = ed
     elif opt=="monthly":
         solo_info["peropt"] = 2
-        sd = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="",mode="quiet")
+        sd = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="",mode="quiet")
         solo_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: solo_info["startdate"] = sd
     elif opt=="days":
         solo_info["peropt"] = 3
-        sd = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="",mode="quiet")
+        sd = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="",mode="quiet")
         solo_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: solo_info["startdate"] = sd
-        ed = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"end_date",default="",mode="quiet")
+        ed = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"end_date",default="",mode="quiet")
         solo_info["enddate"] = dt[-1].strftime("%Y-%m-%d %H:%M")
         if len(ed)!=0: solo_info["enddate"] = ed
     # overwrite option
     solo_info["overwrite"] = False
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"overwrite",default="no",mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"overwrite",default="no",mode="quiet")
     if opt.lower()=="yes": solo_info["overwrite"] = True
     # show plots option
     solo_info["show_plots"] = True
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"show_plots",default="yes",mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"show_plots",default="yes",mode="quiet")
     if opt.lower()=="no": solo_info["show_plots"] = False
     # auto-complete option
     solo_info["auto_complete"] = True
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"auto_complete",default="yes",mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"auto_complete",default="yes",mode="quiet")
     if opt.lower()=="no": solo_info["auto_complete"] = False
     # minimum percentage of good points required
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"min_percent",default=50,mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"min_percent",default=50,mode="quiet")
     solo_info["min_percent"] = int(opt)
     # number of days
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"number_days",default=90,mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"number_days",default=90,mode="quiet")
     solo_info["number_days"] = int(opt)
     # nodes for SOFM/SOLO network
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"nodes",default="auto",mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"nodes",default="auto",mode="quiet")
     solo_info["nodes"] = str(opt)
     # training iterations
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"training",default="500",mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"training",default="500",mode="quiet")
     solo_info["training"] = str(opt)
     # nda factor
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"nda_factor",default="5",mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"nda_factor",default="5",mode="quiet")
     solo_info["factor"] = str(opt)
     # learning rate
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"learning",default="0.01",mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"learning",default="0.01",mode="quiet")
     solo_info["learningrate"] = str(opt)
     # learning iterations
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"iterations",default="500",mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"iterations",default="500",mode="quiet")
     solo_info["iterations"] = str(opt)
     # now set up the rest of the solo_info dictionary
     solo_info["site_name"] = dsb.globalattributes["site_name"]
@@ -881,7 +881,7 @@ def gfSOLO_run_nogui(cf,dsa,dsb,solo_info):
     elif solo_info["peropt"]==4:
         pass
     # write the SOLO fit statistics to an Excel file
-    qcio.xl_write_SOLOStats(dsb)
+    pfp_io.xl_write_SOLOStats(dsb)
     # plot the summary statistics
     gfSOLO_plotsummary(dsb,solo_info)
 
@@ -896,13 +896,13 @@ def gfSOLO_runseqsolo(dsa,dsb,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-
     # now fill the driver data array
     i = 0
     for TheseOnes in driverlist:
-        driver,flag,attr = qcutils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
+        driver,flag,attr = pfp_utils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
         seqsoloinputdata[:,i] = driver[:]
         i = i + 1
     ## a clean copy of the target is pulled from the unmodified ds each time
-    #target,flag,attr = qcutils.GetSeries(dsa,targetlabel,si=si,ei=ei)
+    #target,flag,attr = pfp_utils.GetSeries(dsa,targetlabel,si=si,ei=ei)
     # get the target data
-    target,flag,attr = qcutils.GetSeries(dsb,targetlabel,si=si,ei=ei)
+    target,flag,attr = pfp_utils.GetSeries(dsb,targetlabel,si=si,ei=ei)
     # now load the target data into the data array
     seqsoloinputdata[:,ndrivers] = target[:]
     # now strip out the bad data
@@ -972,7 +972,7 @@ def gfSOLO_runsofm(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
     baddates = []
     badvalues = []
     for TheseOnes in driverlist:
-        driver,flag,attr = qcutils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
+        driver,flag,attr = pfp_utils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
         index = numpy.where(abs(driver-float(c.missing_value))<c.eps)[0]
         if len(index)!=0:
             logger.error(' GapFillUsingSOLO: c.missing_value found in driver '+TheseOnes+' at lines '+str(index))
@@ -1022,13 +1022,13 @@ def gfSOLO_runsolo(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
     # now fill the driver data array, drivers come from the modified ds
     i = 0
     for TheseOnes in driverlist:
-        driver,flag,attr = qcutils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
+        driver,flag,attr = pfp_utils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
         soloinputdata[:,i] = driver[:]
         i = i + 1
     ## a clean copy of the target is pulled from the unmodified ds each time
-    #target,flag,attr = qcutils.GetSeries(dsa,targetlabel,si=si,ei=ei)
+    #target,flag,attr = pfp_utils.GetSeries(dsa,targetlabel,si=si,ei=ei)
     # get the target data
-    target,flag,attr = qcutils.GetSeries(dsb,targetlabel,si=si,ei=ei)
+    target,flag,attr = pfp_utils.GetSeries(dsb,targetlabel,si=si,ei=ei)
     # now load the target data into the data array
     soloinputdata[:,ndrivers] = target[:]
     # now strip out the bad data

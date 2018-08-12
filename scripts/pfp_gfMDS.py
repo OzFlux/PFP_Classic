@@ -12,7 +12,7 @@ import numpy
 import matplotlib.pyplot as plt
 # PFP modules
 import constants as c
-import qcutils
+import pfp_utils
 
 logger = logging.getLogger("pfp_log")
 
@@ -53,7 +53,7 @@ def GapFillFluxUsingMDS(cf, ds):
         if os.path.exists(out_file):
             os.remove(out_file)
     # get some useful odds and ends
-    ldt = qcutils.GetVariable(ds, "DateTime")
+    ldt = pfp_utils.GetVariable(ds, "DateTime")
     first_year = ldt["Data"][0].year
     last_year = ldt["Data"][-1].year
     # now loop over the series to be gap filled using MDS
@@ -113,13 +113,13 @@ def gfMDS_get_mds_output(ds, mds_label, out_file_path, include_qc=False):
     Author: PRI
     Date: May 2018
     """
-    ldt = qcutils.GetVariable(ds, "DateTime")
+    ldt = pfp_utils.GetVariable(ds, "DateTime")
     first_date = ldt["Data"][0]
     last_date = ldt["Data"][-1]
     data_mds = numpy.genfromtxt(out_file_path, delimiter=",", names=True, autostrip=True, dtype=None)
     dt_mds = numpy.array([dateutil.parser.parse(str(dt)) for dt in data_mds["TIMESTAMP"]])
-    si_mds = qcutils.GetDateIndex(dt_mds, first_date)
-    ei_mds = qcutils.GetDateIndex(dt_mds, last_date)
+    si_mds = pfp_utils.GetDateIndex(dt_mds, first_date)
+    ei_mds = pfp_utils.GetDateIndex(dt_mds, last_date)
     # get a list of the names in the data array
     mds_output_names = list(data_mds.dtype.names)
     # strip out the timestamp and the original data
@@ -136,7 +136,7 @@ def gfMDS_get_mds_output(ds, mds_label, out_file_path, include_qc=False):
     for mds_output_name in mds_output_names:
         if mds_output_name == "FILLED":
             # get the gap filled target and write it to the data structure
-            var_in = qcutils.GetVariable(ds, ds.mds[mds_label]["target"])
+            var_in = pfp_utils.GetVariable(ds, ds.mds[mds_label]["target"])
             data = data_mds[mds_output_name][si_mds:ei_mds+1]
             idx = numpy.where((numpy.ma.getmaskarray(var_in["Data"]) == True) &
                               (abs(data - c.missing_value) > c.eps))[0]
@@ -145,7 +145,7 @@ def gfMDS_get_mds_output(ds, mds_label, out_file_path, include_qc=False):
             attr = copy.deepcopy(var_in["Attr"])
             attr["long_name"] = attr["long_name"]+", gap filled using MDS"
             var_out = {"Label":mds_label, "Data":data, "Flag":flag, "Attr":attr}
-            qcutils.CreateVariable(ds, var_out)
+            pfp_utils.CreateVariable(ds, var_out)
         elif mds_output_name == "TIMEWINDOW":
             # make the series name for the data structure
             mds_qc_label = "MDS"+"_"+ds.mds[mds_label]["target"]+"_"+mds_output_name
@@ -153,7 +153,7 @@ def gfMDS_get_mds_output(ds, mds_label, out_file_path, include_qc=False):
             flag = numpy.zeros(len(data))
             attr = {"long_name":"TIMEWINDOW from MDS gap filling for "+ds.mds[mds_label]["target"]}
             var_out = {"Label":mds_qc_label, "Data":data, "Flag":flag, "Attr":attr}
-            qcutils.CreateVariable(ds, var_out)
+            pfp_utils.CreateVariable(ds, var_out)
         else:
             # make the series name for the data structure
             mds_qc_label = "MDS"+"_"+ds.mds[mds_label]["target"]+"_"+mds_output_name
@@ -161,7 +161,7 @@ def gfMDS_get_mds_output(ds, mds_label, out_file_path, include_qc=False):
             flag = numpy.zeros(len(data))
             attr = {"long_name":"QC field from MDS gap filling for "+ds.mds[mds_label]["target"]}
             var_out = {"Label":mds_qc_label, "Data":data, "Flag":flag, "Attr":attr}
-            qcutils.CreateVariable(ds, var_out)
+            pfp_utils.CreateVariable(ds, var_out)
     return
 
 def gfMDS_initplot(**kwargs):
@@ -228,12 +228,12 @@ def gfMDS_make_data_array(ds, current_year, info):
     Author: PRI
     Date: May 2018
     """
-    ldt = qcutils.GetVariable(ds, "DateTime")
+    ldt = pfp_utils.GetVariable(ds, "DateTime")
     nrecs = ds.globalattributes["nc_nrecs"]
     ts = int(ds.globalattributes["time_step"])
     start = datetime.datetime(current_year,1,1,0,30,0)
     end = datetime.datetime(current_year+1,1,1,0,0,0)
-    cdt = numpy.array([dt for dt in qcutils.perdelta(start, end, datetime.timedelta(minutes=ts))])
+    cdt = numpy.array([dt for dt in pfp_utils.perdelta(start, end, datetime.timedelta(minutes=ts))])
     mt = numpy.ones(len(cdt))*float(-9999)
     # need entry for the timestamp and the target ...
     array_list = [cdt, mt]
@@ -242,16 +242,16 @@ def gfMDS_make_data_array(ds, current_year, info):
         array_list.append(mt)
     # now we can create the data array
     data = numpy.stack(array_list, axis=-1)
-    si = qcutils.GetDateIndex(ldt["Data"], start, default=0)
-    ei = qcutils.GetDateIndex(ldt["Data"], end, default=nrecs)
-    dt = qcutils.GetVariable(ds, "DateTime", start=si, end=ei)
-    idx1, _ = qcutils.FindMatchingIndices(cdt, dt["Data"])
+    si = pfp_utils.GetDateIndex(ldt["Data"], start, default=0)
+    ei = pfp_utils.GetDateIndex(ldt["Data"], end, default=nrecs)
+    dt = pfp_utils.GetVariable(ds, "DateTime", start=si, end=ei)
+    idx1, _ = pfp_utils.FindMatchingIndices(cdt, dt["Data"])
     pfp_label_list = [info["target"]]+info["drivers"]
     mds_label_list = [info["target_mds"]]+info["drivers_mds"]
     header = "TIMESTAMP"
     fmt = "%12i"
     for n, label in enumerate(pfp_label_list):
-        var = qcutils.GetVariable(ds, label, start=si, end=ei)
+        var = pfp_utils.GetVariable(ds, label, start=si, end=ei)
         data[idx1,n+1] = var["Data"]
         header = header+","+mds_label_list[n]
         fmt = fmt+","+"%f"
@@ -263,9 +263,9 @@ def gfMDS_plot(cf, pd, ds, mds_label):
     ts = int(ds.globalattributes["time_step"])
     drivers = ds.mds[mds_label]["drivers"]
     target = ds.mds[mds_label]["target"]
-    Hdh = qcutils.GetVariable(ds, "Hdh")
-    obs = qcutils.GetVariable(ds, target)
-    mds = qcutils.GetVariable(ds, mds_label)
+    Hdh = pfp_utils.GetVariable(ds, "Hdh")
+    obs = pfp_utils.GetVariable(ds, target)
+    mds = pfp_utils.GetVariable(ds, mds_label)
     if pd["show_plots"]:
         plt.ion()
     else:
@@ -294,7 +294,7 @@ def gfMDS_plot(cf, pd, ds, mds_label):
     ax1.legend(loc='upper right', frameon=False, prop={'size':8})
 
     # histogram of window size
-    time_window = qcutils.GetVariable(ds, "MDS_"+target+"_TIMEWINDOW")
+    time_window = pfp_utils.GetVariable(ds, "MDS_"+target+"_TIMEWINDOW")
     idx = numpy.where(mds["Flag"] == 40)[0]
     if len(idx) != 0:
         tw_hist_data = time_window["Data"][idx]
@@ -339,7 +339,7 @@ def gfMDS_plot(cf, pd, ds, mds_label):
         this_bottom = pd["ts_bottom"] + (i+1)*pd["ts_height"]
         rect = [pd["margin_left"], this_bottom, pd["ts_width"], pd["ts_height"]]
         ts_axes.append(plt.axes(rect, sharex=ts_axes[0]))
-        drv = qcutils.GetVariable(ds, driver)
+        drv = pfp_utils.GetVariable(ds, driver)
         drv_notgf = numpy.ma.masked_where(drv["Flag"] != 0, drv["Data"])
         drv_gf = numpy.ma.masked_where(drv["Flag"] == 0, drv["Data"])
         ts_axes[i+1].plot(drv["DateTime"], drv_notgf, 'b-')

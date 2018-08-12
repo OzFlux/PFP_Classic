@@ -9,9 +9,9 @@ import time
 import numpy
 import dateutil.parser
 # pfp modules
-import qcrp
-import qcts
-import qcutils
+import pfp_rp
+import pfp_ts
+import pfp_utils
 
 logger = logging.getLogger("pfp_log")
 
@@ -20,8 +20,8 @@ def ApplyQCChecks(variable):
     Purpose:
      Apply the QC checks speified in the control file object to a single variable
     Usage:
-     qcck.ApplyQCChecks(variable)
-     where variable is a variable dictionary as returned by qcutils.GetVariable()
+     pfp_ck.ApplyQCChecks(variable)
+     where variable is a variable dictionary as returned by pfp_utils.GetVariable()
     Author: PRI
     Date: September 2016
     """
@@ -87,34 +87,34 @@ def ApplyTurbulenceFilter(cf,ds,ustar_threshold=None):
     ts = int(ds.globalattributes["time_step"])
     # dictionary of utar thresold values
     if ustar_threshold==None:
-        ustar_dict = qcrp.get_ustar_thresholds(cf,ldt)
+        ustar_dict = pfp_rp.get_ustar_thresholds(cf,ldt)
     else:
-        ustar_dict = qcrp.get_ustar_thresholds_annual(ldt,ustar_threshold)
+        ustar_dict = pfp_rp.get_ustar_thresholds_annual(ldt,ustar_threshold)
     # initialise a dictionary for the indicator series
     indicators = {}
     # get data for the indicator series
-    ustar,ustar_flag,ustar_attr = qcutils.GetSeriesasMA(ds,"ustar")
-    Fsd,f,a = qcutils.GetSeriesasMA(ds,"Fsd")
+    ustar,ustar_flag,ustar_attr = pfp_utils.GetSeriesasMA(ds,"ustar")
+    Fsd,f,a = pfp_utils.GetSeriesasMA(ds,"Fsd")
     if "solar_altitude" not in ds.series.keys():
-        qcts.get_synthetic_fsd(ds)
-    Fsd_syn,f,a = qcutils.GetSeriesasMA(ds,"Fsd_syn")
-    sa,f,a = qcutils.GetSeriesasMA(ds,"solar_altitude")
+        pfp_ts.get_synthetic_fsd(ds)
+    Fsd_syn,f,a = pfp_utils.GetSeriesasMA(ds,"Fsd_syn")
+    sa,f,a = pfp_utils.GetSeriesasMA(ds,"solar_altitude")
     # get the day/night indicator series
     # indicators["day"] = 1 ==> day time, indicators["day"] = 0 ==> night time
-    indicators["day"] = qcrp.get_day_indicator(cf,Fsd,Fsd_syn,sa)
+    indicators["day"] = pfp_rp.get_day_indicator(cf,Fsd,Fsd_syn,sa)
     ind_day = indicators["day"]["values"]
     # get the turbulence indicator series
     if opt["turbulence_filter"].lower()=="ustar":
         # indicators["turbulence"] = 1 ==> turbulent, indicators["turbulence"] = 0 ==> not turbulent
-        indicators["turbulence"] = qcrp.get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts)
+        indicators["turbulence"] = pfp_rp.get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts)
     elif opt["turbulence_filter"].lower()=="ustar_evg":
         # ustar >= threshold ==> ind_ustar = 1, ustar < threshold == ind_ustar = 0
-        indicators["ustar"] = qcrp.get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts)
+        indicators["ustar"] = pfp_rp.get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts)
         ind_ustar = indicators["ustar"]["values"]
         # ustar >= threshold during day AND ustar has been >= threshold since sunset ==> indicators["turbulence"] = 1
         # indicators["turbulence"] = 0 during night once ustar has dropped below threshold even if it
         # increases above the threshold later in the night
-        indicators["turbulence"] = qcrp.get_turbulence_indicator_ustar_evg(ldt,ind_day,ind_ustar,ustar,ustar_dict,ts)
+        indicators["turbulence"] = pfp_rp.get_turbulence_indicator_ustar_evg(ldt,ind_day,ind_ustar,ustar,ustar_dict,ts)
     elif opt["turbulence_filter"].lower()=="l":
         #indicators["turbulence] = get_turbulence_indicator_l(ldt,L,z,d,zmdonL_threshold)
         indicators["turbulence"] = numpy.ones(len(ldt))
@@ -139,7 +139,7 @@ def ApplyTurbulenceFilter(cf,ds,ustar_threshold=None):
         indicators["final"]["values"][idx] = numpy.int(1)
         indicators["final"]["attr"].update(indicators["day"]["attr"])
     # get the evening indicator series
-    indicators["evening"] = qcrp.get_evening_indicator(cf,Fsd,Fsd_syn,sa,ts)
+    indicators["evening"] = pfp_rp.get_evening_indicator(cf,Fsd,Fsd_syn,sa,ts)
     indicators["dayevening"] = {"values":indicators["day"]["values"]+indicators["evening"]["values"]}
     indicators["dayevening"]["attr"] = indicators["day"]["attr"].copy()
     indicators["dayevening"]["attr"].update(indicators["evening"]["attr"])
@@ -150,33 +150,33 @@ def ApplyTurbulenceFilter(cf,ds,ustar_threshold=None):
     # save the indicator series
     ind_flag = numpy.zeros(len(ldt))
     long_name = "Turbulence indicator, 1 for turbulent, 0 for non-turbulent"
-    ind_attr = qcutils.MakeAttributeDictionary(long_name=long_name,units="None")
-    qcutils.CreateSeries(ds,"turbulence_indicator",indicators["turbulence"]["values"],ind_flag,ind_attr)
+    ind_attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units="None")
+    pfp_utils.CreateSeries(ds,"turbulence_indicator",indicators["turbulence"]["values"],ind_flag,ind_attr)
     long_name = "Day indicator, 1 for day time, 0 for night time"
-    ind_attr = qcutils.MakeAttributeDictionary(long_name=long_name,units="None")
-    qcutils.CreateSeries(ds,"day_indicator",indicators["day"]["values"],ind_flag,ind_attr)
+    ind_attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units="None")
+    pfp_utils.CreateSeries(ds,"day_indicator",indicators["day"]["values"],ind_flag,ind_attr)
     long_name = "Evening indicator, 1 for evening, 0 for not evening"
-    ind_attr = qcutils.MakeAttributeDictionary(long_name=long_name,units="None")
-    qcutils.CreateSeries(ds,"evening_indicator",indicators["evening"]["values"],ind_flag,ind_attr)
+    ind_attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units="None")
+    pfp_utils.CreateSeries(ds,"evening_indicator",indicators["evening"]["values"],ind_flag,ind_attr)
     long_name = "Day/evening indicator, 1 for day/evening, 0 for not day/evening"
-    ind_attr = qcutils.MakeAttributeDictionary(long_name=long_name,units="None")
-    qcutils.CreateSeries(ds,"dayevening_indicator",indicators["dayevening"]["values"],ind_flag,ind_attr)
+    ind_attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units="None")
+    pfp_utils.CreateSeries(ds,"dayevening_indicator",indicators["dayevening"]["values"],ind_flag,ind_attr)
     long_name = "Final indicator, 1 for use data, 0 for don't use data"
-    ind_attr = qcutils.MakeAttributeDictionary(long_name=long_name,units="None")
-    qcutils.CreateSeries(ds,"final_indicator",indicators["final"]["values"],ind_flag,ind_attr)
+    ind_attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units="None")
+    pfp_utils.CreateSeries(ds,"final_indicator",indicators["final"]["values"],ind_flag,ind_attr)
     # loop over the series to be filtered
     for series in opt["filter_list"]:
         msg = " Applying "+opt["turbulence_filter"]+" filter to "+series
         logger.info(msg)
         # get the data
-        data,flag,attr = qcutils.GetSeriesasMA(ds,series)
+        data,flag,attr = pfp_utils.GetSeriesasMA(ds,series)
         # continue to next series if this series has been filtered before
         if "turbulence_filter" in attr:
             msg = " Series "+series+" has already been filtered, skipping ..."
             logger.warning(msg)
             continue
         # save the non-filtered data
-        qcutils.CreateSeries(ds,series+"_nofilter",data,flag,attr)
+        pfp_utils.CreateSeries(ds,series+"_nofilter",data,flag,attr)
         # now apply the filter
         data_filtered = numpy.ma.masked_where(indicators["final"]["values"]==0,data,copy=True)
         flag_filtered = numpy.copy(flag)
@@ -186,10 +186,10 @@ def ApplyTurbulenceFilter(cf,ds,ustar_threshold=None):
         for item in indicators["final"]["attr"].keys():
             attr[item] = indicators["final"]["attr"][item]
         # and write the filtered data to the data structure
-        qcutils.CreateSeries(ds,series,data_filtered,flag_filtered,attr)
+        pfp_utils.CreateSeries(ds,series,data_filtered,flag_filtered,attr)
         # and write a copy of the filtered datas to the data structure so it
         # will still exist once the gap filling has been done
-        qcutils.CreateSeries(ds,series+"_filtered",data_filtered,flag_filtered,attr)
+        pfp_utils.CreateSeries(ds,series+"_filtered",data_filtered,flag_filtered,attr)
     return
 
 def ApplyTurbulenceFilter_checks(cf,ds):
@@ -207,7 +207,7 @@ def ApplyTurbulenceFilter_checks(cf,ds):
         opt["OK"] = False
         return opt
     # get the value of the TurbulenceFilter key in the Options section
-    opt["turbulence_filter"] = qcutils.get_keyvaluefromcf(cf,["Options"],"TurbulenceFilter",default="None")
+    opt["turbulence_filter"] = pfp_utils.get_keyvaluefromcf(cf,["Options"],"TurbulenceFilter",default="None")
     # return if turbulence filter disabled
     if opt["turbulence_filter"].lower()=="none":
         msg = " Turbulence filter disabled in control file at "+ds.globalattributes["nc_level"]
@@ -237,7 +237,7 @@ def ApplyTurbulenceFilter_checks(cf,ds):
         opt["OK"] = False
         return opt
     # get the value of the DayNightFilter key in the Options section
-    opt["daynight_filter"] = qcutils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="None")
+    opt["daynight_filter"] = pfp_utils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="None")
     # check to see if filter type can be handled
     if opt["daynight_filter"].lower() not in ["fsd","sa","none"]:
         msg = " Unrecognised day/night filter option ("
@@ -246,8 +246,8 @@ def ApplyTurbulenceFilter_checks(cf,ds):
         opt["OK"] = False
         return opt
     # check to see if all day time values are to be accepted
-    opt["accept_day_times"] = qcutils.get_keyvaluefromcf(cf,["Options"],"AcceptDayTimes",default="Yes")
-    opt["use_evening_filter"] = qcutils.get_keyvaluefromcf(cf,["Options"],"UseEveningFilter",default="Yes")
+    opt["accept_day_times"] = pfp_utils.get_keyvaluefromcf(cf,["Options"],"AcceptDayTimes",default="Yes")
+    opt["use_evening_filter"] = pfp_utils.get_keyvaluefromcf(cf,["Options"],"UseEveningFilter",default="Yes")
 
     return opt
 
@@ -258,9 +258,9 @@ def cliptorange(data, lower, upper):
 
 def CoordinateAh7500AndFcGaps(cf,ds,Fcvar='Fc'):
     '''Cleans up Ah_7500_Av based upon Fc gaps to for QA check on Ah_7500_Av v Ah_HMP.'''
-    if not qcutils.cfoptionskeylogical(cf,Key='CoordinateAh7500&FcGaps'): return
+    if not pfp_utils.cfoptionskeylogical(cf,Key='CoordinateAh7500&FcGaps'): return
     logger.info(' Doing the Ah_7500 check')
-    if qcutils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='AhcheckFc'):
+    if pfp_utils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='AhcheckFc'):
         Fclist = ast.literal_eval(cf['FunctionArgs']['AhcheckFc'])
         Fcvar = Fclist[0]
 
@@ -277,15 +277,15 @@ def CoordinateAh7500AndFcGaps(cf,ds,Fcvar='Fc'):
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',CoordinateAh7500AndFcGaps'
 
 def CoordinateFluxGaps(cf,ds,Fc_in='Fc',Fe_in='Fe',Fh_in='Fh'):
-    if not qcutils.cfoptionskeylogical(cf,Key='CoordinateFluxGaps'): return
-    if qcutils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='gapsvars'):
+    if not pfp_utils.cfoptionskeylogical(cf,Key='CoordinateFluxGaps'): return
+    if pfp_utils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='gapsvars'):
         vars = ast.literal_eval(cf['FunctionArgs']['gapsvars'])
         Fc_in = vars[0]
         Fe_in = vars[1]
         Fh_in = vars[2]
-    Fc,f,a = qcutils.GetSeriesasMA(ds,Fc_in)
-    Fe,f,a = qcutils.GetSeriesasMA(ds,Fe_in)
-    Fh,f,a = qcutils.GetSeriesasMA(ds,Fh_in)
+    Fc,f,a = pfp_utils.GetSeriesasMA(ds,Fc_in)
+    Fe,f,a = pfp_utils.GetSeriesasMA(ds,Fe_in)
+    Fh,f,a = pfp_utils.GetSeriesasMA(ds,Fh_in)
     # April 2015 PRI - changed numpy.ma.where to numpy.where
     index = numpy.where((numpy.ma.getmaskarray(Fc)==True)|
                         (numpy.ma.getmaskarray(Fe)==True)|
@@ -318,9 +318,9 @@ def CreateNewSeries(cf,ds):
     logger.info(' Checking for new series to create')
     for ThisOne in cf['Variables'].keys():
         if 'MergeSeries' in cf['Variables'][ThisOne].keys():
-            qcts.MergeSeries(cf,ds,ThisOne)
+            pfp_ts.MergeSeries(cf,ds,ThisOne)
         if 'AverageSeries' in cf['Variables'][ThisOne].keys():
-            qcts.AverageSeriesByElements(cf,ds,ThisOne)
+            pfp_ts.AverageSeriesByElements(cf,ds,ThisOne)
 
 def do_SONICcheck(cf, ds, code=3):
     """
@@ -374,7 +374,7 @@ def do_dependencycheck(cf, ds, section, series, code=23, mode="quiet"):
     Date: Back in the day
     """
     if len(section)==0 and len(series)==0: return
-    if len(section)==0: section = qcutils.get_cfsection(cf,series=series,mode='quiet')
+    if len(section)==0: section = pfp_utils.get_cfsection(cf,series=series,mode='quiet')
     if "DependencyCheck" not in cf[section][series].keys(): return
     if "Source" not in cf[section][series]["DependencyCheck"]:
         msg = " DependencyCheck: keyword Source not found for series "+series+", skipping ..."
@@ -386,12 +386,12 @@ def do_dependencycheck(cf, ds, section, series, code=23, mode="quiet"):
     # get the precursor source list from the control file
     source_list = ast.literal_eval(cf[section][series]["DependencyCheck"]["Source"])
     # check to see if the "ignore_missing" flag is set
-    opt = qcutils.get_keyvaluefromcf(cf, [section,series,"DependencyCheck"], "ignore_missing", default="no")
+    opt = pfp_utils.get_keyvaluefromcf(cf, [section,series,"DependencyCheck"], "ignore_missing", default="no")
     ignore_missing = False
     if opt.lower() in ["yes","y","true","t"]:
         ignore_missing = True
     # get the data
-    dependent_data,dependent_flag,dependent_attr = qcutils.GetSeries(ds, series)
+    dependent_data,dependent_flag,dependent_attr = pfp_utils.GetSeries(ds, series)
     # loop over the precursor source list
     for item in source_list:
         # check the precursor is in the data structure
@@ -400,7 +400,7 @@ def do_dependencycheck(cf, ds, section, series, code=23, mode="quiet"):
             logger.warning(msg)
             continue
         # get the precursor data
-        precursor_data,precursor_flag,precursor_attr = qcutils.GetSeries(ds,item)
+        precursor_data,precursor_flag,precursor_attr = pfp_utils.GetSeries(ds,item)
         # check if the user wants to ignore missing precursor data
         if ignore_missing:
             # they do, so make an array of missing values
@@ -419,7 +419,7 @@ def do_dependencycheck(cf, ds, section, series, code=23, mode="quiet"):
         dependent_flag[idx] = numpy.int32(code)
     # put the data back into the data structure
     dependent_attr["DependencyCheck_source"] = str(source_list)
-    qcutils.CreateSeries(ds,series,dependent_data,dependent_flag,dependent_attr)
+    pfp_utils.CreateSeries(ds,series,dependent_data,dependent_flag,dependent_attr)
     # our work here is done
     return
 
@@ -508,9 +508,9 @@ def do_EPQCFlagCheck(cf,ds,section,series,code=9):
     flag = numpy.zeros(nRecs, dtype=numpy.int32)
     source_list = ast.literal_eval(cf[section][series]['EPQCFlagCheck']["Source"])
     reject_list = ast.literal_eval(cf[section][series]['EPQCFlagCheck']["Reject"])
-    variable = qcutils.GetVariable(ds, series)
+    variable = pfp_utils.GetVariable(ds, series)
     for source in source_list:
-        epflag = qcutils.GetVariable(ds, source)
+        epflag = pfp_utils.GetVariable(ds, source)
         for value in reject_list:
             bool_array = numpy.isclose(epflag["Data"], float(value))
             idx = numpy.where(bool_array == True)[0]
@@ -518,7 +518,7 @@ def do_EPQCFlagCheck(cf,ds,section,series,code=9):
     idx = numpy.where(flag == 1)[0]
     variable["Data"][idx] = numpy.float(c.missing_value)
     variable["Flag"][idx] = numpy.int32(9)
-    qcutils.CreateVariable(ds, variable)
+    pfp_utils.CreateVariable(ds, variable)
     return
 
 def do_excludedates(cf,ds,section,series,code=6):
@@ -530,12 +530,12 @@ def do_excludedates(cf,ds,section,series,code=6):
         ExcludeDateList = ast.literal_eval(cf[section][series]['ExcludeDates'][str(i)])
         try:
             dt = datetime.datetime.strptime(ExcludeDateList[0],'%Y-%m-%d %H:%M')
-            si = qcutils.find_nearest_value(ldt, dt)
+            si = pfp_utils.find_nearest_value(ldt, dt)
         except ValueError:
             si = 0
         try:
             dt = datetime.datetime.strptime(ExcludeDateList[1],'%Y-%m-%d %H:%M')
-            ei = qcutils.find_nearest_value(ldt, dt)
+            ei = pfp_utils.find_nearest_value(ldt, dt)
         except ValueError:
             ei = -1
         ds.series[series]['Data'][si:ei] = numpy.float64(c.missing_value)
@@ -553,12 +553,12 @@ def do_excludehours(cf,ds,section,series,code=7):
         ExcludeHourList = ast.literal_eval(cf[section][series]['ExcludeHours'][str(i)])
         try:
             dt = datetime.datetime.strptime(ExcludeHourList[0],'%Y-%m-%d %H:%M')
-            si = qcutils.find_nearest_value(ldt, dt)
+            si = pfp_utils.find_nearest_value(ldt, dt)
         except ValueError:
             si = 0
         try:
             dt = datetime.datetime.strptime(ExcludeHourList[1],'%Y-%m-%d %H:%M')
-            ei = qcutils.find_nearest_value(ldt, dt)
+            ei = pfp_utils.find_nearest_value(ldt, dt)
         except ValueError:
             ei = -1
         for j in range(len(ExcludeHourList[2])):
@@ -584,7 +584,7 @@ def do_IRGAcheck(cf,ds):
     """
     irga_list = ["li7500","li7500a","li7500rs","ec150","ec155","irgason"]
     # get the IRGA type from the control file
-    irga_type = qcutils.get_keyvaluefromcf(cf,["Options"],"irga_type", default="li7500")
+    irga_type = pfp_utils.get_keyvaluefromcf(cf,["Options"],"irga_type", default="li7500")
     # remove any hyphens or spaces
     for item in ["-"," "]:
         if item in irga_type: irga_type = irga_type.replace(item,"")
@@ -719,7 +719,7 @@ def do_li7500acheck(cf,ds):
             ds.series[ThisOne]['Data'][idx] = numpy.float64(c.missing_value)
             ds.series[ThisOne]['Flag'][idx] = numpy.int32(4)
         else:
-            #logger.warning('  qcck.do_7500acheck: series '+str(ThisOne)+' in LI75List not found in ds.series')
+            #logger.warning('  pfp_ck.do_7500acheck: series '+str(ThisOne)+' in LI75List not found in ds.series')
             pass
     if '7500ACheck' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',7500ACheck'
@@ -727,12 +727,12 @@ def do_li7500acheck(cf,ds):
 def do_linear(cf,ds):
     level = ds.globalattributes['nc_level']
     for ThisOne in cf['Variables'].keys():
-        if qcutils.haskey(cf,ThisOne,'Linear'):
-            qcts.ApplyLinear(cf,ds,ThisOne)
-        if qcutils.haskey(cf,ThisOne,'Drift'):
-            qcts.ApplyLinearDrift(cf,ds,ThisOne)
-        if qcutils.haskey(cf,ThisOne,'LocalDrift'):
-            qcts.ApplyLinearDriftLocal(cf,ds,ThisOne)
+        if pfp_utils.haskey(cf,ThisOne,'Linear'):
+            pfp_ts.ApplyLinear(cf,ds,ThisOne)
+        if pfp_utils.haskey(cf,ThisOne,'Drift'):
+            pfp_ts.ApplyLinearDrift(cf,ds,ThisOne)
+        if pfp_utils.haskey(cf,ThisOne,'LocalDrift'):
+            pfp_ts.ApplyLinearDriftLocal(cf,ds,ThisOne)
     if 'do_linear' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',do_linear'
 
@@ -763,7 +763,7 @@ def do_rangecheck(cf, ds, section, series, code=2):
     valid_lower = numpy.min(lwr)
     lwr = lwr[ds.series['Month']['Data']-1]
     # get the data, flag and attributes
-    data, flag, attr = qcutils.GetSeriesasMA(ds, series)
+    data, flag, attr = pfp_utils.GetSeriesasMA(ds, series)
     # convert the data from a masked array to an ndarray so the range check works
     data = numpy.ma.filled(data, fill_value=c.missing_value)
     # get the indices of elements outside this range
@@ -776,7 +776,7 @@ def do_rangecheck(cf, ds, section, series, code=2):
     attr["rangecheck_upper"] = cf[section][series]["RangeCheck"]["Upper"]
     attr["valid_range"] = str(valid_lower)+","+str(valid_upper)
     # and now put the data back into the data structure
-    qcutils.CreateSeries(ds, series, data, Flag=flag, Attr=attr)
+    pfp_utils.CreateSeries(ds, series, data, Flag=flag, Attr=attr)
     # now we can return
     return
 
@@ -821,7 +821,7 @@ def do_qcchecks(cf,ds,mode="verbose"):
 
 def do_qcchecks_oneseries(cf,ds,section,series):
     if len(section)==0:
-        section = qcutils.get_cfsection(cf,series=series,mode='quiet')
+        section = pfp_utils.get_cfsection(cf,series=series,mode='quiet')
         if len(section)==0: return
     # do the range check
     do_rangecheck(cf,ds,section,series,code=2)
@@ -844,7 +844,7 @@ def do_qcchecks_oneseries(cf,ds,section,series):
 
 def do_winddirectioncorrection(cf,ds,section,series):
     if 'CorrectWindDirection' not in cf[section][series].keys(): return
-    qcts.CorrectWindDirection(cf,ds,series)
+    pfp_ts.CorrectWindDirection(cf,ds,series)
 
 def rangecheckserieslower(data,lower):
     if lower is None:
@@ -886,7 +886,7 @@ def do_lowercheck(cf,ds,section,series,code=2):
 
     ldt = ds.series["DateTime"]["Data"]
     ts = ds.globalattributes["time_step"]
-    data, flag, attr = qcutils.GetSeriesasMA(ds, series)
+    data, flag, attr = pfp_utils.GetSeriesasMA(ds, series)
 
     lc_list = list(cf[section][series]["LowerCheck"].keys())
     for n,item in enumerate(lc_list):
@@ -898,8 +898,8 @@ def do_lowercheck(cf,ds,section,series,code=2):
         end_date = dateutil.parser.parse(lwr_info[2])
         eu = float(lwr_info[3])
         # get the start and end indices
-        si = qcutils.GetDateIndex(ldt, start_date, ts=ts, default=0, match="exact")
-        ei = qcutils.GetDateIndex(ldt, end_date, ts=ts, default=len(ldt)-1, match="exact")
+        si = pfp_utils.GetDateIndex(ldt, start_date, ts=ts, default=0, match="exact")
+        ei = pfp_utils.GetDateIndex(ldt, end_date, ts=ts, default=len(ldt)-1, match="exact")
         # get the segment of data between this start and end date
         seg_data = data[si:ei+1]
         seg_flag = flag[si:ei+1]
@@ -911,7 +911,7 @@ def do_lowercheck(cf,ds,section,series,code=2):
         data[si:ei+1] = seg_data
         flag[si:ei+1] = seg_flag
     # now put the data back into the data structure
-    qcutils.CreateSeries(ds, series, data, Flag=flag, Attr=attr)
+    pfp_utils.CreateSeries(ds, series, data, Flag=flag, Attr=attr)
     return
 
 def do_uppercheck(cf,ds,section,series,code=2):
@@ -932,7 +932,7 @@ def do_uppercheck(cf,ds,section,series,code=2):
 
     ldt = ds.series["DateTime"]["Data"]
     ts = ds.globalattributes["time_step"]
-    data, flag, attr = qcutils.GetSeriesasMA(ds, series)
+    data, flag, attr = pfp_utils.GetSeriesasMA(ds, series)
 
     lc_list = list(cf[section][series]["UpperCheck"].keys())
     for n,item in enumerate(lc_list):
@@ -944,8 +944,8 @@ def do_uppercheck(cf,ds,section,series,code=2):
         end_date = dateutil.parser.parse(upr_info[2])
         eu = float(upr_info[3])
         # get the start and end indices
-        si = qcutils.GetDateIndex(ldt, start_date, ts=ts, default=0, match="exact")
-        ei = qcutils.GetDateIndex(ldt, end_date, ts=ts, default=len(ldt)-1, match="exact")
+        si = pfp_utils.GetDateIndex(ldt, start_date, ts=ts, default=0, match="exact")
+        ei = pfp_utils.GetDateIndex(ldt, end_date, ts=ts, default=len(ldt)-1, match="exact")
         seg_data = data[si:ei+1]
         seg_flag = flag[si:ei+1]
         x = numpy.arange(si, ei+1, 1)
@@ -956,7 +956,7 @@ def do_uppercheck(cf,ds,section,series,code=2):
         data[si:ei+1] = seg_data
         flag[si:ei+1] = seg_flag
     # now put the data back into the data structure
-    qcutils.CreateSeries(ds, series, data, Flag=flag, Attr=attr)
+    pfp_utils.CreateSeries(ds, series, data, Flag=flag, Attr=attr)
     return
 
 def UpdateVariableAttributes_QC(cf, variable):
@@ -968,7 +968,7 @@ def UpdateVariableAttributes_QC(cf, variable):
     Date: November 2016
     """
     label = variable["Label"]
-    section = qcutils.get_cfsection(cf,series=label,mode='quiet')
+    section = pfp_utils.get_cfsection(cf,series=label,mode='quiet')
     if label not in cf[section]:
         return
     if "RangeCheck" not in cf[section][label]:

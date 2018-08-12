@@ -4,7 +4,7 @@ import datetime
 import logging
 import matplotlib.pyplot as plt
 import numpy
-import qcutils
+import pfp_utils
 from scipy.optimize import curve_fit
 
 logger = logging.getLogger("pfp_log")
@@ -75,8 +75,8 @@ def get_LL_params(ldt,Fsd,D,T,NEE,ER,LT_results,info):
     end_date = start_date+datetime.timedelta(days=info["window_length"])
     while end_date<=last_date:
         sub_results = {"RMSE":[],"alpha":[],"beta":[],"k":[],"rb":[]}
-        si = qcutils.GetDateIndex(ldt,str(start_date),ts=info["ts"])
-        ei = qcutils.GetDateIndex(ldt,str(end_date),ts=info["ts"])
+        si = pfp_utils.GetDateIndex(ldt,str(start_date),ts=info["ts"])
+        ei = pfp_utils.GetDateIndex(ldt,str(end_date),ts=info["ts"])
         drivers["Fsd"] = numpy.ma.compressed(Fsd[si:ei+1])
         drivers["D"] = numpy.ma.compressed(D[si:ei+1])
         drivers["T"] = numpy.ma.compressed(T[si:ei+1])
@@ -214,8 +214,8 @@ def get_LT_params(ldt,ER,T,info,mode="verbose"):
         LT_results["start_date"] = numpy.append(LT_results["start_date"],start_date)
         LT_results["mid_date"] = numpy.append(LT_results["mid_date"],start_date+(end_date-start_date)/2)
         LT_results["end_date"] = numpy.append(LT_results["end_date"],end_date)
-        si = qcutils.GetDateIndex(ldt,str(start_date),ts=info["ts"])
-        ei = qcutils.GetDateIndex(ldt,str(end_date),ts=info["ts"])
+        si = pfp_utils.GetDateIndex(ldt,str(start_date),ts=info["ts"])
+        ei = pfp_utils.GetDateIndex(ldt,str(end_date),ts=info["ts"])
         Tsub = numpy.ma.compressed(T[si:ei+1])
         ERsub = numpy.ma.compressed(ER[si:ei+1])
         if len(ERsub)>=10:
@@ -307,7 +307,7 @@ def rpLL_createdict(cf,ds,series):
     Date April 2016
     """
     # get the section of the control file containing the series
-    section = qcutils.get_cfsection(cf,series=series,mode="quiet")
+    section = pfp_utils.get_cfsection(cf,series=series,mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
         logger.error("ERUsingLasslop: Series "+series+" not found in control file, skipping ...")
@@ -316,7 +316,7 @@ def rpLL_createdict(cf,ds,series):
     driver_list = ast.literal_eval(cf[section][series]["ERUsingLasslop"]["drivers"])
     target = cf[section][series]["ERUsingLasslop"]["target"]
     for label in driver_list:
-        data,flag,attr = qcutils.GetSeriesasMA(ds,label)
+        data,flag,attr = pfp_utils.GetSeriesasMA(ds,label)
         if numpy.ma.count_masked(data)!=0:
             logger.error("ERUsingLasslop: driver "+label+" contains missing data, skipping target "+target)
             return
@@ -325,7 +325,7 @@ def rpLL_createdict(cf,ds,series):
     # site name
     rpLL_info["site_name"] = ds.globalattributes["site_name"]
     # source series for ER
-    opt = qcutils.get_keyvaluefromcf(cf, [section,series,"ERUsingLasslop"], "source", default="Fc")
+    opt = pfp_utils.get_keyvaluefromcf(cf, [section,series,"ERUsingLasslop"], "source", default="Fc")
     rpLL_info["source"] = opt
     # target series name
     rpLL_info["target"] = cf[section][series]["ERUsingLasslop"]["target"]
@@ -345,8 +345,8 @@ def rpLL_createdict(cf,ds,series):
     rpLL_info["window_size_days"] = int(cf[section][series]["ERUsingLasslop"]["window_size_days"])
     # create an empty series in ds if the output series doesn't exist yet
     if rpLL_info["output"] not in ds.series.keys():
-        data,flag,attr = qcutils.MakeEmptySeries(ds,rpLL_info["output"])
-        qcutils.CreateSeries(ds,rpLL_info["output"],data,flag,attr)
+        data,flag,attr = pfp_utils.MakeEmptySeries(ds,rpLL_info["output"])
+        pfp_utils.CreateSeries(ds,rpLL_info["output"],data,flag,attr)
     # create the merge directory in the data structure
     if "merge" not in dir(ds): ds.merge = {}
     if "standard" not in ds.merge.keys(): ds.merge["standard"] = {}
@@ -358,6 +358,19 @@ def rpLL_createdict(cf,ds,series):
     ds.merge["standard"][series]["source"] = ast.literal_eval(cf[section][series]["MergeSeries"]["Source"])
     # create an empty series in ds if the output series doesn't exist yet
     if ds.merge["standard"][series]["output"] not in ds.series.keys():
-        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.merge["standard"][series]["output"])
-        qcutils.CreateSeries(ds,ds.merge["standard"][series]["output"],data,flag,attr)
+        data,flag,attr = pfp_utils.MakeEmptySeries(ds,ds.merge["standard"][series]["output"])
+        pfp_utils.CreateSeries(ds,ds.merge["standard"][series]["output"],data,flag,attr)
     return rpLL_info
+
+def rpLL_initplot(**kwargs):
+    # set the margins, heights, widths etc
+    pd = {"margin_bottom":0.075,"margin_top":0.075,"margin_left":0.05,"margin_right":0.05,
+          "xy_height":0.20,"xy_width":0.20,"xyts_space":0.05,"xyts_space":0.05,
+          "ts_width":0.9}
+    # set the keyword arguments
+    for key, value in kwargs.iteritems():
+        pd[key] = value
+    # calculate bottom of the first time series and the height of the time series plots
+    pd["ts_bottom"] = pd["margin_bottom"]+pd["xy_height"]+pd["xyts_space"]
+    pd["ts_height"] = (1.0 - pd["margin_top"] - pd["ts_bottom"])/float(pd["nDrivers"]+1)
+    return pd

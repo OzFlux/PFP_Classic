@@ -15,10 +15,10 @@ import scipy
 import statsmodels.api as sm
 # PFP modules
 import constants as c
-import qcck
-import qcio
-import qcts
-import qcutils
+import pfp_ck
+import pfp_io
+import pfp_ts
+import pfp_utils
 
 logger = logging.getLogger("pfp_log")
 
@@ -48,7 +48,7 @@ def GapFillFromAlternate(cf, ds4, ds_alt):
                       "startdate":startdate.strftime("%Y-%m-%d %H:%M"),
                       "enddate":enddate.strftime("%Y-%m-%d %H:%M")}
     # check to see if this is a batch or an interactive run
-    call_mode = qcutils.get_keyvaluefromcf(cf, ["Options"], "call_mode", default="interactive")
+    call_mode = pfp_utils.get_keyvaluefromcf(cf, ["Options"], "call_mode", default="interactive")
     alternate_info["call_mode"]= call_mode
     if call_mode.lower()=="interactive":
         alternate_info["show_plots"] = True
@@ -184,8 +184,8 @@ def gfalternate_autocomplete(ds_tower,ds_alt,alternate_info,mode="verbose"):
     dt_tower = ds_tower.series["DateTime"]["Data"]
     nRecs = len(dt_tower)
     ts = alternate_info["time_step"]
-    si_tower = qcutils.GetDateIndex(dt_tower,alternate_info["gui_startdate"],ts=ts,default=0)
-    ei_tower = qcutils.GetDateIndex(dt_tower,alternate_info["gui_enddate"],ts=ts,default=nRecs-1)
+    si_tower = pfp_utils.GetDateIndex(dt_tower,alternate_info["gui_startdate"],ts=ts,default=0)
+    ei_tower = pfp_utils.GetDateIndex(dt_tower,alternate_info["gui_enddate"],ts=ts,default=nRecs-1)
     ldt_tower = dt_tower[si_tower:ei_tower+1]
     nRecs_gui = len(ldt_tower)
     label_tower_list = list(set(alternate_info["series_list"]))
@@ -193,10 +193,10 @@ def gfalternate_autocomplete(ds_tower,ds_alt,alternate_info,mode="verbose"):
         data_all = {}
         label_composite = label_tower+"_composite"
         not_enough_points = False
-        data_composite, _, _ = qcutils.GetSeriesasMA(ds_tower, label_composite, si=si_tower, ei=ei_tower)
-        data_tower, _, _ = qcutils.GetSeriesasMA(ds_tower, label_tower, si=si_tower, ei=ei_tower)
+        data_composite, _, _ = pfp_utils.GetSeriesasMA(ds_tower, label_composite, si=si_tower, ei=ei_tower)
+        data_tower, _, _ = pfp_utils.GetSeriesasMA(ds_tower, label_tower, si=si_tower, ei=ei_tower)
         mask_composite = numpy.ma.getmaskarray(data_composite)
-        gapstartend = qcutils.contiguous_regions(mask_composite)
+        gapstartend = pfp_utils.contiguous_regions(mask_composite)
         if len(gapstartend)==0:
             if mode.lower()!="quiet":
                 msg = " autocomplete: composite "+label_composite+" has no gaps to fill, skipping ..."
@@ -209,12 +209,12 @@ def gfalternate_autocomplete(ds_tower,ds_alt,alternate_info,mode="verbose"):
             alt_filename = ds_tower.alternate[label_output]["file_name"]
             ds_alternate = ds_alt[alt_filename]
             dt_alternate = ds_alternate.series["DateTime"]["Data"]
-            si_alternate = qcutils.GetDateIndex(dt_alternate,alternate_info["gui_startdate"],ts=ts,default=0)
-            ei_alternate = qcutils.GetDateIndex(dt_alternate,alternate_info["gui_enddate"],ts=ts,default=nRecs-1)
+            si_alternate = pfp_utils.GetDateIndex(dt_alternate,alternate_info["gui_startdate"],ts=ts,default=0)
+            ei_alternate = pfp_utils.GetDateIndex(dt_alternate,alternate_info["gui_enddate"],ts=ts,default=nRecs-1)
             alt_series_list = [item for item in ds_alternate.series.keys() if "_QCFlag" not in item]
             alt_series_list = [item for item in alt_series_list if ds_tower.alternate[label_output]["alternate_name"] in item]
             for label_alternate in alt_series_list:
-                data_alt, _, _ = qcutils.GetSeriesasMA(ds_alternate, label_alternate, si=si_alternate, ei=ei_alternate)
+                data_alt, _, _ = pfp_utils.GetSeriesasMA(ds_alternate, label_alternate, si=si_alternate, ei=ei_alternate)
                 data_all[label_alternate] = data_alt
                 for n,gap in enumerate(gapstartend):
                     min_points = max([int(((gap[1]-gap[0])+1)*alternate_info["min_percent"]/100),3*alternate_info["nperhr"]])
@@ -332,7 +332,7 @@ def gfalternate_done(ds,alt_gui):
         for i in plt.get_fignums():
             plt.close(i)
     # write Excel spreadsheet with fit statistics
-    qcio.xl_write_AlternateStats(ds)
+    pfp_io.xl_write_AlternateStats(ds)
     # put the return code into ds.alternate
     ds.returncodes["alternate"] = "normal"
 
@@ -352,13 +352,13 @@ def gfalternate_getalternatevaratmaxr(ds_tower,ds_alternate,alternate_info,mode=
     enddate = alternate_info["enddate"]
     ts = alternate_info["time_step"]
     ldt_tower = ds_tower.series["DateTime"]["Data"]
-    si_tower = qcutils.GetDateIndex(ldt_tower, startdate,ts=ts)
-    ei_tower = qcutils.GetDateIndex(ldt_tower, enddate,ts=ts)
-    data_tower, _, _ = qcutils.GetSeriesasMA(ds_tower, label_tower, si=si_tower, ei=ei_tower)
+    si_tower = pfp_utils.GetDateIndex(ldt_tower, startdate,ts=ts)
+    ei_tower = pfp_utils.GetDateIndex(ldt_tower, enddate,ts=ts)
+    data_tower, _, _ = pfp_utils.GetSeriesasMA(ds_tower, label_tower, si=si_tower, ei=ei_tower)
     # local pointers to the start and end indices
     ldt_alternate = ds_alternate.series["DateTime"]["Data"]
-    si_alternate = qcutils.GetDateIndex(ldt_alternate, startdate, ts=ts)
-    ei_alternate = qcutils.GetDateIndex(ldt_alternate, enddate, ts=ts)
+    si_alternate = pfp_utils.GetDateIndex(ldt_alternate, startdate, ts=ts)
+    ei_alternate = pfp_utils.GetDateIndex(ldt_alternate, enddate, ts=ts)
     # create an array for the correlations and a list for the alternate variables in order of decreasing correlation
     if "usevars" not in ds_tower.alternate[label_output]:
         altvar_list = gfalternate_getalternatevarlist(ds_alternate, alternate_info["alternate_name"])
@@ -368,7 +368,7 @@ def gfalternate_getalternatevaratmaxr(ds_tower,ds_alternate,alternate_info,mode=
     # loop over the variables in the alternate file
     for idx,var in enumerate(altvar_list):
         # get the alternate data
-        data_alternate, _, _ = qcutils.GetSeriesasMA(ds_alternate, var, si=si_alternate, ei=ei_alternate)
+        data_alternate, _, _ = pfp_utils.GetSeriesasMA(ds_alternate, var, si=si_alternate, ei=ei_alternate)
         alternate_info["gotminpoints_alternate"] = gfalternate_gotminpoints(data_alternate,alternate_info,label_tower,mode="quiet")
         if numpy.ma.count(data_alternate)>alternate_info["min_points"]:
             # check the lengths of the tower and alternate data are the same
@@ -452,10 +452,10 @@ def gfalternate_getdateindices(ldt_tower,ldt_alternate,alternate_info,match):
     enddate = alternate_info["enddate"]
     ts = alternate_info["time_step"]
     # get the indices of the start and end datetimes in the tower and the alternate data.
-    si_tower = qcutils.GetDateIndex(ldt_tower,startdate,ts=ts,match=si_match,default=0)
-    ei_tower = qcutils.GetDateIndex(ldt_tower,enddate,ts=ts,match=ei_match,default=len(ldt_tower)-1)
-    si_alternate = qcutils.GetDateIndex(ldt_alternate,startdate,ts=ts,match=si_match,default=0)
-    ei_alternate = qcutils.GetDateIndex(ldt_alternate,enddate,ts=ts,match=ei_match,default=len(ldt_alternate)-1)
+    si_tower = pfp_utils.GetDateIndex(ldt_tower,startdate,ts=ts,match=si_match,default=0)
+    ei_tower = pfp_utils.GetDateIndex(ldt_tower,enddate,ts=ts,match=ei_match,default=len(ldt_tower)-1)
+    si_alternate = pfp_utils.GetDateIndex(ldt_alternate,startdate,ts=ts,match=si_match,default=0)
+    ei_alternate = pfp_utils.GetDateIndex(ldt_alternate,enddate,ts=ts,match=ei_match,default=len(ldt_alternate)-1)
     alternate_info["tower"]["si"] = si_tower
     alternate_info["tower"]["ei"] = ei_tower
     alternate_info["alternate"]["si"] = si_alternate
@@ -542,17 +542,17 @@ def gfalternate_getlagcorrecteddata(ds_alternate, data_dict, stat_dict, alternat
     startdate = alternate_info["startdate"]
     enddate = alternate_info["enddate"]
     ts = alternate_info["time_step"]
-    si_alternate = qcutils.GetDateIndex(ldt_alternate, startdate, ts=ts)
-    ei_alternate = qcutils.GetDateIndex(ldt_alternate, enddate, ts=ts)
+    si_alternate = pfp_utils.GetDateIndex(ldt_alternate, startdate, ts=ts)
+    ei_alternate = pfp_utils.GetDateIndex(ldt_alternate, enddate, ts=ts)
     if alternate_info["lag"].lower() == "yes":
         maxlags = alternate_info["max_lags"]
-        _, corr = qcts.get_laggedcorrelation(data_tower, data_alternate, maxlags)
+        _, corr = pfp_ts.get_laggedcorrelation(data_tower, data_alternate, maxlags)
         nLags = numpy.argmax(corr) - alternate_info["max_lags"]
         if nLags > alternate_info["nperhr"]*6:
             logger.error("getlagcorrecteddata: lag is more than 6 hours for %s", label_tower)
         si_alternate = si_alternate - nLags
         ei_alternate = ei_alternate - nLags
-        data_alternate, _, _ = qcutils.GetSeriesasMA(ds_alternate, label_alternate, si=si_alternate, ei=ei_alternate, mode="mirror")
+        data_alternate, _, _ = pfp_utils.GetSeriesasMA(ds_alternate, label_alternate, si=si_alternate, ei=ei_alternate, mode="mirror")
         data_dict[label_output][label_alternate]["lagcorr"] = data_alternate
         stat_dict[label_output][label_alternate]["nLags"] = nLags
     else:
@@ -609,7 +609,7 @@ def gfalternate_getodrcorrecteddata(data_dict,stat_dict,alternate_info):
     x = numpy.ma.compressed(numpy.ma.array(x_in,mask=mask,copy=True))
     y = numpy.ma.compressed(numpy.ma.array(y_in,mask=mask,copy=True))
     # attempt an ODR fit
-    linear = scipy.odr.Model(qcutils.linear_function)
+    linear = scipy.odr.Model(pfp_utils.linear_function)
     mydata = scipy.odr.Data(x,y)
     myodr = scipy.odr.ODR(mydata,linear,beta0=[1,0])
     myoutput = myodr.run()
@@ -866,8 +866,8 @@ def gfalternate_loadoutputdata(ds_tower,data_dict,alternate_info):
     label_composite = alternate_info["label_composite"]
     label_alternate = alternate_info["label_alternate"]
     ts = alternate_info["time_step"]
-    si = qcutils.GetDateIndex(ldt_tower,alternate_info["startdate"],ts=ts,default=0)
-    ei = qcutils.GetDateIndex(ldt_tower,alternate_info["enddate"],ts=ts,default=len(ldt_tower))
+    si = pfp_utils.GetDateIndex(ldt_tower,alternate_info["startdate"],ts=ts,default=0)
+    ei = pfp_utils.GetDateIndex(ldt_tower,alternate_info["enddate"],ts=ts,default=len(ldt_tower))
     if alternate_info["overwrite"]:
         ind1 = numpy.where(numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["data"])==False)[0]
     else:
@@ -922,16 +922,16 @@ def gfalternate_main(ds_tower, ds_alt, alternate_info, label_tower_list=[]):
             if i!=0: plt.close(i)
     # read the control file again
     cfname = ds_tower.globalattributes["controlfile_name"]
-    cf = qcio.get_controlfilecontents(cfname,mode="quiet")
+    cf = pfp_io.get_controlfilecontents(cfname,mode="quiet")
     alternate_info["plot_path"] = cf["Files"]["plot_path"]
     # do any QC checks
-    qcck.do_qcchecks(cf, ds_tower, mode="quiet")
+    pfp_ck.do_qcchecks(cf, ds_tower, mode="quiet")
     # update the ds.alternate dictionary
     gfalternate_updatedict(cf, ds_tower, ds_alt)
     # get local pointer to the datetime series
     dt_tower = ds_tower.series["DateTime"]["Data"]
-    si_tower = qcutils.GetDateIndex(dt_tower, alternate_info["startdate"], ts=ts, default=0)
-    ei_tower = qcutils.GetDateIndex(dt_tower, alternate_info["enddate"], ts=ts, default=len(dt_tower)-1)
+    si_tower = pfp_utils.GetDateIndex(dt_tower, alternate_info["startdate"], ts=ts, default=0)
+    ei_tower = pfp_utils.GetDateIndex(dt_tower, alternate_info["enddate"], ts=ts, default=len(dt_tower)-1)
     ldt_tower = dt_tower[si_tower:ei_tower+1]
     # now loop over the variables to be gap filled using the alternate data
     if len(label_tower_list)==0:
@@ -941,7 +941,7 @@ def gfalternate_main(ds_tower, ds_alt, alternate_info, label_tower_list=[]):
         label_composite = label_tower+"_composite"
         alternate_info["label_composite"] = label_composite
         # read the tower data and check for gaps
-        data_tower, _,attr_tower = qcutils.GetSeriesasMA(ds_tower,label_tower,si=si_tower,ei=ei_tower)
+        data_tower, _,attr_tower = pfp_utils.GetSeriesasMA(ds_tower,label_tower,si=si_tower,ei=ei_tower)
         alternate_info["min_points"] = int(len(data_tower)*alternate_info["min_percent"]/100)
         # check to see if we have any gaps to fill
         alternate_info["nogaps_tower"] = gfalternate_gotnogaps(data_tower,label_tower,mode=mode)
@@ -966,15 +966,15 @@ def gfalternate_main(ds_tower, ds_alt, alternate_info, label_tower_list=[]):
             ds_alternate = ds_alt[ds_tower.alternate[label_output]["file_name"]]
             ldt_alternate = ds_alternate.series["DateTime"]["Data"]
             # start and end idices for this time range in the alternate data
-            si_alternate = qcutils.GetDateIndex(ldt_alternate, alternate_info["startdate"], ts=ts, default=0)
-            ei_alternate = qcutils.GetDateIndex(ldt_alternate, alternate_info["enddate"], ts=ts, default=len(ldt_alternate)-1)
+            si_alternate = pfp_utils.GetDateIndex(ldt_alternate, alternate_info["startdate"], ts=ts, default=0)
+            ei_alternate = pfp_utils.GetDateIndex(ldt_alternate, alternate_info["enddate"], ts=ts, default=len(ldt_alternate)-1)
             # get the alternate series that has the highest correlation with the tower data
             label_alternate_list = gfalternate_getalternatevaratmaxr(ds_tower,ds_alternate,alternate_info,mode=mode)
             # loop over alternate variables
             for label_alternate in label_alternate_list:
                 alternate_info["label_alternate"] = label_alternate
                 # get the raw alternate data
-                data_alternate, _,attr_alternate = qcutils.GetSeriesasMA(ds_alternate, label_alternate, si=si_alternate, ei=ei_alternate)
+                data_alternate, _,attr_alternate = pfp_utils.GetSeriesasMA(ds_alternate, label_alternate, si=si_alternate, ei=ei_alternate)
                 # check this alternate variable to see if there are enough points
                 alternate_info["gotminpoints_alternate"] = gfalternate_gotminpoints(data_alternate, alternate_info, label_alternate, mode=mode)
                 alternate_info["gotdataforgaps_alternate"] = gfalternate_gotdataforgaps(data_dict[label_output]["data"], data_alternate,alternate_info, mode=mode)
@@ -1125,14 +1125,14 @@ def gfalternate_plotcoveragelines(ds_tower):
     plt.ylim([0,len(series_list)+1])
     plt.xlim([ldt[0],ldt[-1]])
     for series,n in zip(series_list,range(1,len(series_list)+1)):
-        data_series, _, _ = qcutils.GetSeriesasMA(ds_tower,series)
+        data_series, _, _ = pfp_utils.GetSeriesasMA(ds_tower,series)
         percent = 100*numpy.ma.count(data_series)/len(data_series)
         ylabel_right_list.append("{0:.0f}%".format(percent))
         ind_series = numpy.ma.ones(len(data_series))*float(n)
         ind_series = numpy.ma.masked_where(numpy.ma.getmaskarray(data_series)==True,ind_series)
         plt.plot(ldt,ind_series,color=color_list[numpy.mod(n,8)],linewidth=1)
         if series+"_composite" in ds_tower.series.keys():
-            data_composite, _, _ = qcutils.GetSeriesasMA(ds_tower,series+"_composite")
+            data_composite, _, _ = pfp_utils.GetSeriesasMA(ds_tower,series+"_composite")
             ind_composite = numpy.ma.ones(len(data_composite))*float(n)
             ind_composite = numpy.ma.masked_where(numpy.ma.getmaskarray(data_composite)==True,ind_composite)
             plt.plot(ldt,ind_composite,color=color_list[numpy.mod(n,8)],linewidth=4)
@@ -1365,7 +1365,7 @@ def gfalternate_run_gui(ds_tower,ds_alt,alt_gui,alternate_info):
     else:
         logger.error("GapFillFromAlternate: unrecognised period option")
     # write Excel spreadsheet with fit statistics
-    #qcio.xl_write_AlternateStats(ds_tower)
+    #pfp_io.xl_write_AlternateStats(ds_tower)
 
 def gfalternate_run_nogui(cf,ds_tower,ds_alt,alternate_info):
     # populate the alternate_info dictionary with things that will be useful
@@ -1373,49 +1373,49 @@ def gfalternate_run_nogui(cf,ds_tower,ds_alt,alternate_info):
     alternate_info["autoforce"] = False
     # period option
     dt_tower = ds_tower.series["DateTime"]["Data"]
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"period_option",default="manual",mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","Alternate"],"period_option",default="manual",mode="quiet")
     if opt=="manual":
         alternate_info["peropt"] = 1
-        sd = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"start_date",default="",mode="quiet")
+        sd = pfp_utils.get_keyvaluefromcf(cf,["GUI","Alternate"],"start_date",default="",mode="quiet")
         alternate_info["startdate"] = dt_tower[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: alternate_info["startdate"] = sd
-        ed = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"end_date",default="",mode="quiet")
+        ed = pfp_utils.get_keyvaluefromcf(cf,["GUI","Alternate"],"end_date",default="",mode="quiet")
         alternate_info["enddate"] = dt_tower[-1].strftime("%Y-%m-%d %H:%M")
         if len(ed)!=0: alternate_info["enddate"] = ed
     elif opt=="monthly":
         alternate_info["peropt"] = 2
-        sd = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"start_date",default="",mode="quiet")
+        sd = pfp_utils.get_keyvaluefromcf(cf,["GUI","Alternate"],"start_date",default="",mode="quiet")
         alternate_info["startdate"] = dt_tower[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: alternate_info["startdate"] = sd
     elif opt=="days":
         alternate_info["peropt"] = 3
-        sd = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"start_date",default="",mode="quiet")
+        sd = pfp_utils.get_keyvaluefromcf(cf,["GUI","Alternate"],"start_date",default="",mode="quiet")
         alternate_info["startdate"] = dt_tower[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: alternate_info["startdate"] = sd
-        ed = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"end_date",default="",mode="quiet")
+        ed = pfp_utils.get_keyvaluefromcf(cf,["GUI","Alternate"],"end_date",default="",mode="quiet")
         alternate_info["enddate"] = dt_tower[-1].strftime("%Y-%m-%d %H:%M")
         if len(ed)!=0: alternate_info["enddate"] = ed
     # overwrite option
     alternate_info["overwrite"] = False
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"overwrite",default="no",mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","Alternate"],"overwrite",default="no",mode="quiet")
     if opt.lower()=="yes": alternate_info["overwrite"] = True
     # show plots option
     alternate_info["show_plots"] = True
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"show_plots",default="yes",mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","Alternate"],"show_plots",default="yes",mode="quiet")
     if opt.lower()=="no": alternate_info["show_plots"] = False
     # show all plots option
     alternate_info["show_all"] = False
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"show_all",default="no",mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","Alternate"],"show_all",default="no",mode="quiet")
     if opt.lower()=="yes": alternate_info["show_all"] = True
     # auto-complete option
     alternate_info["auto_complete"] = True
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"auto_complete",default="yes",mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","Alternate"],"auto_complete",default="yes",mode="quiet")
     if opt.lower()=="no": alternate_info["auto_complete"] = False
     # minimum percentage of good points required
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"min_percent",default=50,mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","Alternate"],"min_percent",default=50,mode="quiet")
     alternate_info["min_percent"] = max(int(opt),1)
     # number of days
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"number_days",default=90,mode="quiet")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","Alternate"],"number_days",default=90,mode="quiet")
     alternate_info["number_days"] = int(opt)
     # now set up the rest of the alternate_info dictionary
     alternate_info["site_name"] = ds_tower.globalattributes["site_name"]
@@ -1494,7 +1494,7 @@ def gfalternate_run_nogui(cf,ds_tower,ds_alt,alternate_info):
     else:
         logger.error("GapFillFromAlternate: unrecognised period option")
     # write Excel spreadsheet with fit statistics
-    qcio.xl_write_AlternateStats(ds_tower)
+    pfp_io.xl_write_AlternateStats(ds_tower)
 
 def gfalternate_updatedict(cf,ds_tower,ds_alt):
     """
@@ -1531,7 +1531,7 @@ def gfalternate_updatedict(cf,ds_tower,ds_alt):
                 ds_tower.alternate[output]["file_name"] = cf[section][series]["GapFillFromAlternate"][output]["file_name"]
             # if the file has not already been read, do it now
             if ds_tower.alternate[output]["file_name"] not in ds_alt:
-                ds_alt[ds_tower.alternate[output]["file_name"]] = qcio.nc_read_series(ds_tower.alternate[output]["file_name"])
+                ds_alt[ds_tower.alternate[output]["file_name"]] = pfp_io.nc_read_series(ds_tower.alternate[output]["file_name"])
             # get the type of fit
             ds_tower.alternate[output]["fit_type"] = "OLS"
             if "fit" in cf[section][series]["GapFillFromAlternate"][output]:
@@ -1571,8 +1571,8 @@ def gfalternate_updatedict(cf,ds_tower,ds_alt):
                                                          "Slope":[],"Offset":[]}
             # create an empty series in ds if the alternate output series doesn't exist yet
             if output not in ds_tower.series.keys():
-                data,flag,attr = qcutils.MakeEmptySeries(ds_tower,output)
-                qcutils.CreateSeries(ds_tower,output,data,flag,attr)
+                data,flag,attr = pfp_utils.MakeEmptySeries(ds_tower,output)
+                pfp_utils.CreateSeries(ds_tower,output,data,flag,attr)
 
 def gfalternate_update_alternate_info(ds_tower,alternate_info):
     """Update the alternate_info dictionary."""

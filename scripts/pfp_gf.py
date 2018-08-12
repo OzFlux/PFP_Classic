@@ -10,16 +10,16 @@ import matplotlib.dates as mdt
 import xlrd
 # PFP modules
 import constants as c
-import qcio
-import qcts
-import qcutils
+import pfp_io
+import pfp_ts
+import pfp_utils
 
 logger = logging.getLogger("pfp_log")
 
 # GapFillParseControlFile parses the L4 control file
 def GapFillParseControlFile(cf, ds, series, ds_alt):
     # find the section containing the series
-    section = qcutils.get_cfsection(cf, series=series, mode="quiet")
+    section = pfp_utils.get_cfsection(cf, series=series, mode="quiet")
     # return empty handed if the series is not in a section
     if len(section) == 0:
         return
@@ -49,7 +49,7 @@ def gfalternate_createdict(cf, ds, series, ds_alt):
     Date: August 2014
     """
     # get the section of the control file containing the series
-    section = qcutils.get_cfsection(cf, series=series, mode="quiet")
+    section = pfp_utils.get_cfsection(cf, series=series, mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
         logger.error("GapFillFromAlternate: Series %s not found in control file, skipping ...", series)
@@ -81,7 +81,7 @@ def gfalternate_createdict(cf, ds, series, ds_alt):
             ds.alternate[output]["file_name"] = cf[section][series]["GapFillFromAlternate"][output]["file_name"]
         # if the file has not already been read, do it now
         if ds.alternate[output]["file_name"] not in ds_alt:
-            ds_alternate = qcio.nc_read_series(ds.alternate[output]["file_name"],fixtimestepmethod="round")
+            ds_alternate = pfp_io.nc_read_series(ds.alternate[output]["file_name"],fixtimestepmethod="round")
             gfalternate_matchstartendtimes(ds,ds_alternate)
             ds_alt[ds.alternate[output]["file_name"]] = ds_alternate
         # get the type of fit
@@ -116,9 +116,9 @@ def gfalternate_createdict(cf, ds, series, ds_alt):
                                            "Var (Tower)":[],"Var (Alt)":[],"Var ratio":[]}
         # create an empty series in ds if the alternate output series doesn't exist yet
         if output not in ds.series.keys():
-            data,flag,attr = qcutils.MakeEmptySeries(ds,output)
-            qcutils.CreateSeries(ds,output,data,flag,attr)
-            qcutils.CreateSeries(ds,series+"_composite",data,flag,attr)
+            data,flag,attr = pfp_utils.MakeEmptySeries(ds,output)
+            pfp_utils.CreateSeries(ds,output,data,flag,attr)
+            pfp_utils.CreateSeries(ds,series+"_composite",data,flag,attr)
 
 def gfalternate_matchstartendtimes(ds,ds_alternate):
     """
@@ -156,12 +156,12 @@ def gfalternate_matchstartendtimes(ds,ds_alternate):
     # do the alternate and tower data overlap?
     if overlap:
         # index of alternate datetimes that are also in tower datetimes
-        #alternate_index = qcutils.FindIndicesOfBInA(ldt_tower,ldt_alternate)
-        #alternate_index = [qcutils.find_nearest_value(ldt_tower, dt) for dt in ldt_alternate]
+        #alternate_index = pfp_utils.FindIndicesOfBInA(ldt_tower,ldt_alternate)
+        #alternate_index = [pfp_utils.find_nearest_value(ldt_tower, dt) for dt in ldt_alternate]
         # index of tower datetimes that are also in alternate datetimes
-        #tower_index = qcutils.FindIndicesOfBInA(ldt_alternate,ldt_tower)
-        #tower_index = [qcutils.find_nearest_value(ldt_alternate, dt) for dt in ldt_tower]
-        tower_index, alternate_index = qcutils.FindMatchingIndices(ldt_tower, ldt_alternate)
+        #tower_index = pfp_utils.FindIndicesOfBInA(ldt_alternate,ldt_tower)
+        #tower_index = [pfp_utils.find_nearest_value(ldt_alternate, dt) for dt in ldt_tower]
+        tower_index, alternate_index = pfp_utils.FindMatchingIndices(ldt_tower, ldt_alternate)
         # check that the indices point to the same times
         ldta = [ldt_alternate[i] for i in alternate_index]
         ldtt = [ldt_tower[i] for i in tower_index]
@@ -180,7 +180,7 @@ def gfalternate_matchstartendtimes(ds,ds_alternate):
         for series in alternate_series_list:
             if series in ["DateTime","DateTime_UTC"]: continue
             # get the alternate data
-            data,flag,attr = qcutils.GetSeriesasMA(ds_alternate,series)
+            data,flag,attr = pfp_utils.GetSeriesasMA(ds_alternate,series)
             # create an array of missing data of the required length
             data_overlap = numpy.full(nRecs_tower,c.missing_value,dtype=numpy.float64)
             flag_overlap = numpy.ones(nRecs_tower,dtype=numpy.int32)
@@ -188,7 +188,7 @@ def gfalternate_matchstartendtimes(ds,ds_alternate):
             data_overlap[tower_index] = data[alternate_index]
             flag_overlap[tower_index] = flag[alternate_index]
             # write the truncated or padded series back into the alternate data structure
-            qcutils.CreateSeries(ds_alternate,series,data_overlap,flag_overlap,attr)
+            pfp_utils.CreateSeries(ds_alternate,series,data_overlap,flag_overlap,attr)
         # update the number of records in the file
         ds_alternate.globalattributes["nc_nrecs"] = nRecs_tower
     else:
@@ -200,17 +200,17 @@ def gfalternate_matchstartendtimes(ds,ds_alternate):
         for series in alternate_series_list:
             if series in ["DateTime","DateTime_UTC"]:
                 continue
-            _,  _, attr = qcutils.GetSeriesasMA(ds_alternate, series)
+            _,  _, attr = pfp_utils.GetSeriesasMA(ds_alternate, series)
             data = numpy.full(nRecs, c.missing_value, dtype=numpy.float64)
             flag = numpy.ones(nRecs, dtype=numpy.int32)
-            qcutils.CreateSeries(ds_alternate, series, data, flag, attr)
+            pfp_utils.CreateSeries(ds_alternate, series, data, flag, attr)
     ds.returncodes["GapFillFromAlternate"] = "normal"
 
 def gfClimatology_createdict(cf, ds, series):
     """ Creates a dictionary in ds to hold information about the climatological data used
         to gap fill the tower data."""
     # get the section of the control file containing the series
-    section = qcutils.get_cfsection(cf, series=series,mode="quiet")
+    section = pfp_utils.get_cfsection(cf, series=series,mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section) == 0:
         logger.error("GapFillFromClimatology: Series %s not found in control file, skipping ...", series)
@@ -251,8 +251,8 @@ def gfClimatology_createdict(cf, ds, series):
             ds.climatology[output]["method"] = cf[section][series]["GapFillFromClimatology"][output]["method"]
         # create an empty series in ds if the climatology output series doesn't exist yet
         if output not in ds.series.keys():
-            data, flag, attr = qcutils.MakeEmptySeries(ds, output)
-            qcutils.CreateSeries(ds, output, data, flag, attr)
+            data, flag, attr = pfp_utils.MakeEmptySeries(ds, output)
+            pfp_utils.CreateSeries(ds, output, data, flag, attr)
 
 def gfMDS_createdict(cf, ds, series):
     """
@@ -265,7 +265,7 @@ def gfMDS_createdict(cf, ds, series):
     Date: May 2018
     """
     # get the section of the control file containing the series
-    section = qcutils.get_cfsection(cf, series=series, mode="quiet")
+    section = pfp_utils.get_cfsection(cf, series=series, mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
         logger.error("GapFillUsingMDS: Series %s not found in control file, skipping ...", series)
@@ -295,10 +295,10 @@ def gfMDS_createdict(cf, ds, series):
         # list of tolerances
         ds.mds[output]["tolerances"] = ast.literal_eval(cf[section][series]["GapFillUsingMDS"][output]["tolerances"])
         # get the ustar filter option
-        opt = qcutils.get_keyvaluefromcf(cf, [section, series, "GapFillUsingMDS", output], "turbulence_filter", default="")
+        opt = pfp_utils.get_keyvaluefromcf(cf, [section, series, "GapFillUsingMDS", output], "turbulence_filter", default="")
         ds.mds[output]["turbulence_filter"] = opt
         # get the day/night filter option
-        opt = qcutils.get_keyvaluefromcf(cf, [section, series, "GapFillUsingMDS", output], "daynight_filter", default="")
+        opt = pfp_utils.get_keyvaluefromcf(cf, [section, series, "GapFillUsingMDS", output], "daynight_filter", default="")
         ds.mds[output]["daynight_filter"] = opt
 
     # check that all requested targets and drivers have a mapping to
@@ -333,7 +333,7 @@ def gfMergeSeries_createdict(cf,ds,series):
         and tower data."""
     merge_prereq_list = ["Fsd","Fsu","Fld","Flu","Ts","Sws"]
     # get the section of the control file containing the series
-    section = qcutils.get_cfsection(cf,series=series,mode="quiet")
+    section = pfp_utils.get_cfsection(cf,series=series,mode="quiet")
     # create the merge directory in the data structure
     if "merge" not in dir(ds): ds.merge = {}
     # check to see if this series is in the "merge first" list
@@ -350,14 +350,14 @@ def gfMergeSeries_createdict(cf,ds,series):
     ds.merge[merge_order][series]["source"] = ast.literal_eval(cf[section][series]["MergeSeries"]["Source"])
     # create an empty series in ds if the output series doesn't exist yet
     if ds.merge[merge_order][series]["output"] not in ds.series.keys():
-        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.merge[merge_order][series]["output"])
-        qcutils.CreateSeries(ds,ds.merge[merge_order][series]["output"],data,flag,attr)
+        data,flag,attr = pfp_utils.MakeEmptySeries(ds,ds.merge[merge_order][series]["output"])
+        pfp_utils.CreateSeries(ds,ds.merge[merge_order][series]["output"],data,flag,attr)
 
 def gfSOLO_createdict(cf,ds,series):
     """ Creates a dictionary in ds to hold information about the SOLO data used
         to gap fill the tower data."""
     # get the section of the control file containing the series
-    section = qcutils.get_cfsection(cf,series=series,mode="quiet")
+    section = pfp_utils.get_cfsection(cf,series=series,mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
         logger.error("GapFillUsingSOLO: Series %s not found in control file, skipping ...", series)
@@ -389,10 +389,10 @@ def gfSOLO_createdict(cf,ds,series):
         # list of drivers
         ds.solo[output]["drivers"] = ast.literal_eval(cf[section][series]["GapFillUsingSOLO"][output]["drivers"])
         # apply ustar filter
-        opt = qcutils.get_keyvaluefromcf(cf,[section,series,"GapFillUsingSOLO",output],
+        opt = pfp_utils.get_keyvaluefromcf(cf,[section,series,"GapFillUsingSOLO",output],
                                          "turbulence_filter",default="")
         ds.solo[output]["turbulence_filter"] = opt
-        opt = qcutils.get_keyvaluefromcf(cf,[section,series,"GapFillUsingSOLO",output],
+        opt = pfp_utils.get_keyvaluefromcf(cf,[section,series,"GapFillUsingSOLO",output],
                                          "daynight_filter",default="")
         ds.solo[output]["daynight_filter"] = opt
         # results of best fit for plotting later on
@@ -403,12 +403,12 @@ def gfSOLO_createdict(cf,ds,series):
                                       "m_ols":[],"b_ols":[]}
         # create an empty series in ds if the SOLO output series doesn't exist yet
         if output not in ds.series.keys():
-            data,flag,attr = qcutils.MakeEmptySeries(ds,output)
-            qcutils.CreateSeries(ds,output,data,flag,attr)
+            data,flag,attr = pfp_utils.MakeEmptySeries(ds,output)
+            pfp_utils.CreateSeries(ds,output,data,flag,attr)
 
 # functions for GapFillUsingMDS: not implemented yet
 def GapFillFluxUsingMDS(cf, ds, series=""):
-    section = qcutils.get_cfsection(cf, series=series, mode="quiet")
+    section = pfp_utils.get_cfsection(cf, series=series, mode="quiet")
     if len(section)==0:
         return
     if "GapFillFluxUsingMDS" in cf[section][series].keys():
@@ -488,7 +488,7 @@ def gfClimatology_interpolateddaily(ds,series,output,xlbooks):
         # fill the climatological value array
         val1d[xlRow*nts:(xlRow+1)*nts] = thissheet.row_values(xlRow+2,start_colx=1,end_colx=nts+1)
     # get the data to be filled with climatological values
-    data,flag,attr = qcutils.GetSeriesasMA(ds,series)
+    data,flag,attr = pfp_utils.GetSeriesasMA(ds,series)
     # get an index of missing values
     idx = numpy.where(numpy.ma.getmaskarray(data)==True)[0]
     #idx = numpy.ma.where(numpy.ma.getmaskarray(data)==True)[0]
@@ -502,14 +502,14 @@ def gfClimatology_interpolateddaily(ds,series,output,xlbooks):
     # to dates in the climatology file
     for ii in idx:
         try:
-            jj = qcutils.find_nearest_value(cdt, ldt[ii])
+            jj = pfp_utils.find_nearest_value(cdt, ldt[ii])
             data[ii] = val1d[jj]
             flag[ii] = numpy.int32(40)
         except ValueError:
             data[ii] = numpy.float64(c.missing_value)
             flag[ii] = numpy.int32(41)
     # put the gap filled data back into the data structure
-    qcutils.CreateSeries(ds,output,data,flag,attr)
+    pfp_utils.CreateSeries(ds,output,data,flag,attr)
 
 def gfClimatology_monthly(ds,series,output,xlbook):
     """ Gap fill using monthly climatology."""
@@ -535,27 +535,27 @@ def GapFillUsingInterpolation(cf,ds):
      All variables in the [Variables], [Drivers] and [Fluxes] section
      are processed.
     Usage:
-     qcgf.GapFillUsingInterpolation(cf,ds)
+     pfp_gf.GapFillUsingInterpolation(cf,ds)
      where cf is a control file object
            ds is a data structure
     Author: PRI
     Date: September 2016
     """
-    label_list = qcutils.get_label_list_from_cf(cf)
-    maxlen = int(qcutils.get_keyvaluefromcf(cf,["Options"],"MaxGapInterpolate",default=2))
+    label_list = pfp_utils.get_label_list_from_cf(cf)
+    maxlen = int(pfp_utils.get_keyvaluefromcf(cf,["Options"],"MaxGapInterpolate",default=2))
     if maxlen==0:
         msg = " Gap fill by interpolation disabled in control file"
         logger.info(msg)
         return
     for label in label_list:
-        section = qcutils.get_cfsection(cf, series=label)
+        section = pfp_utils.get_cfsection(cf, series=label)
         if "MaxGapInterpolate" in cf[section][label]:
-            maxlen = int(qcutils.get_keyvaluefromcf(cf,[section,label],"MaxGapInterpolate",default=2))
+            maxlen = int(pfp_utils.get_keyvaluefromcf(cf,[section,label],"MaxGapInterpolate",default=2))
             if maxlen==0:
                 msg = " Gap fill by interpolation disabled for "+label
                 logger.info(msg)
                 continue
-            qcts.InterpolateOverMissing(ds,series=label,maxlen=2)
+            pfp_ts.InterpolateOverMissing(ds,series=label,maxlen=2)
 
 # miscellaneous L4 routines
 def gf_getdiurnalstats(DecHour,Data,ts):
@@ -628,26 +628,26 @@ def ImportSeries(cf,ds):
     end_date = ldt[-1]
     # loop over the series in the Imports section
     for label in cf["Imports"].keys():
-        import_filename = qcutils.get_keyvaluefromcf(cf,["Imports",label],"file_name",default="")
+        import_filename = pfp_utils.get_keyvaluefromcf(cf,["Imports",label],"file_name",default="")
         if import_filename=="":
             msg = " ImportSeries: import filename not found in control file, skipping ..."
             logger.warning(msg)
             continue
-        var_name = qcutils.get_keyvaluefromcf(cf,["Imports",label],"var_name",default="")
+        var_name = pfp_utils.get_keyvaluefromcf(cf,["Imports",label],"var_name",default="")
         if var_name=="":
             msg = " ImportSeries: variable name not found in control file, skipping ..."
             logger.warning(msg)
             continue
-        ds_import = qcio.nc_read_series(import_filename)
+        ds_import = pfp_io.nc_read_series(import_filename)
         ts_import = ds_import.globalattributes["time_step"]
         ldt_import = ds_import.series["DateTime"]["Data"]
-        si = qcutils.GetDateIndex(ldt_import,str(start_date),ts=ts_import,default=0,match="exact")
-        ei = qcutils.GetDateIndex(ldt_import,str(end_date),ts=ts_import,default=len(ldt_import)-1,match="exact")
+        si = pfp_utils.GetDateIndex(ldt_import,str(start_date),ts=ts_import,default=0,match="exact")
+        ei = pfp_utils.GetDateIndex(ldt_import,str(end_date),ts=ts_import,default=len(ldt_import)-1,match="exact")
         data = numpy.ma.ones(nRecs)*float(c.missing_value)
         flag = numpy.ma.ones(nRecs)
-        data_import,flag_import,attr_import = qcutils.GetSeriesasMA(ds_import,var_name,si=si,ei=ei)
+        data_import,flag_import,attr_import = pfp_utils.GetSeriesasMA(ds_import,var_name,si=si,ei=ei)
         ldt_import = ldt_import[si:ei+1]
-        index = qcutils.FindIndicesOfBInA(ldt_import,ldt)
+        index = pfp_utils.FindIndicesOfBInA(ldt_import,ldt)
         data[index] = data_import
         flag[index] = flag_import
-        qcutils.CreateSeries(ds,label,data,flag,attr_import)
+        pfp_utils.CreateSeries(ds,label,data,flag,attr_import)

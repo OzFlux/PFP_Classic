@@ -11,16 +11,17 @@ import dateutil
 import matplotlib.pyplot as plt
 import netCDF4
 import numpy
+import pylab
 import xlrd
 # PFP modules
 import constants as c
 import meteorologicalfunctions as mf
-import qcio
-import qcrpLL
-import qcrpLT
-import qcrpNN
-import qcts
-import qcutils
+import pfp_io
+import pfp_rpLL
+import pfp_rpLT
+import pfp_rpNN
+import pfp_ts
+import pfp_utils
 
 logger = logging.getLogger("pfp_log")
 
@@ -29,7 +30,7 @@ def CalculateET(ds):
     Purpose:
      Calculate ET from Fe
     Usage:
-     qcrp.CalculateET(ds)
+     pfp_rp.CalculateET(ds)
       where ds is a data structure
     Side effects:
      Series to hold the ET data are created in ds.
@@ -40,11 +41,11 @@ def CalculateET(ds):
     series_list = ds.series.keys()
     Fe_list = [item for item in series_list if "Fe" in item[0:2]]
     for label in Fe_list:
-        Fe,flag,attr = qcutils.GetSeriesasMA(ds,label)
+        Fe,flag,attr = pfp_utils.GetSeriesasMA(ds,label)
         ET = Fe*ts*60/c.Lv
         attr["long_name"] = "Evapo-transpiration calculated from latent heat flux"
         attr["units"] = "mm"
-        qcutils.CreateSeries(ds,label.replace("Fe","ET"),ET,flag,attr)
+        pfp_utils.CreateSeries(ds,label.replace("Fe","ET"),ET,flag,attr)
 
 def CalculateNEE(cf, ds, info):
     """
@@ -52,7 +53,7 @@ def CalculateNEE(cf, ds, info):
      Calculate NEE from observed Fc and observed/modeled ER.
      Input and output names are held in info["nee"].
     Usage:
-     qcrp.CalculateNEE(cf,ds)
+     pfp_rp.CalculateNEE(cf,ds)
       where cf is a conbtrol file object
             ds is a data structure
     Side effects:
@@ -62,22 +63,22 @@ def CalculateNEE(cf, ds, info):
     """
     if "nee" not in info: return
     # get the Fsd and ustar thresholds
-    Fsd_threshold = float(qcutils.get_keyvaluefromcf(cf,["Params"],"Fsd_threshold",default=10))
+    Fsd_threshold = float(pfp_utils.get_keyvaluefromcf(cf,["Params"],"Fsd_threshold",default=10))
     # get the incoming shortwave radiation and friction velocity
-    Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
+    Fsd,Fsd_flag,Fsd_attr = pfp_utils.GetSeriesasMA(ds,"Fsd")
     if "Fsd_syn" in ds.series.keys():
-        Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
+        Fsd_syn,flag,attr = pfp_utils.GetSeriesasMA(ds,"Fsd_syn")
         index = numpy.where(numpy.ma.getmaskarray(Fsd)==True)[0]
         #index = numpy.ma.where(numpy.ma.getmaskarray(Fsd)==True)[0]
         Fsd[index] = Fsd_syn[index]
-    ustar,ustar_flag,ustar_attr = qcutils.GetSeriesasMA(ds,"ustar")
+    ustar,ustar_flag,ustar_attr = pfp_utils.GetSeriesasMA(ds,"ustar")
     for label in info["nee"].keys():
         if "Fc" not in info["nee"][label] and "ER" not in info["nee"][label]: continue
         Fc_label = info["nee"][label]["Fc"]
         ER_label = info["nee"][label]["ER"]
         output_label = info["nee"][label]["output"]
-        Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,Fc_label)
-        ER,ER_flag,ER_attr = qcutils.GetSeriesasMA(ds,ER_label)
+        Fc,Fc_flag,Fc_attr = pfp_utils.GetSeriesasMA(ds,Fc_label)
+        ER,ER_flag,ER_attr = pfp_utils.GetSeriesasMA(ds,ER_label)
         # put the day time Fc into the NEE series
         index = numpy.ma.where(Fsd>=Fsd_threshold)[0]
         ds.series[output_label]["Data"][index] = Fc[index]
@@ -99,7 +100,7 @@ def CalculateNEP(cf, ds):
     Purpose:
      Calculate NEP from NEE
     Usage:
-     qcrp.CalculateNEP(cf,ds)
+     pfp_rp.CalculateNEP(cf,ds)
       where cf is a control file object
             ds is a data structure
     Side effects:
@@ -109,10 +110,10 @@ def CalculateNEP(cf, ds):
     """
     for nee_name in cf["NEE"].keys():
         nep_name = nee_name.replace("NEE","NEP")
-        nee,flag,attr = qcutils.GetSeriesasMA(ds,nee_name)
+        nee,flag,attr = pfp_utils.GetSeriesasMA(ds,nee_name)
         nep = float(-1)*nee
         attr["long_name"] = "Net Ecosystem Productivity calculated as -1*"+nee_name
-        qcutils.CreateSeries(ds,nep_name,nep,flag,attr)
+        pfp_utils.CreateSeries(ds,nep_name,nep,flag,attr)
 
 def cleanup_ustar_dict(ldt,ustar_dict):
     """
@@ -154,7 +155,7 @@ def ERUsingFFNET(cf, ds, info):
     Purpose:
      Estimate ecosystem respiration using the ffnet neural network.
     Usage:
-     qcrp.ERUsingFFNET(cf,ds)
+     pfp_rp.ERUsingFFNET(cf,ds)
       where cf is a control file object
             ds is a data structure
     Author: PRI
@@ -173,16 +174,16 @@ def ERUsingFFNET(cf, ds, info):
                   "plot_path":cf["Files"]["plot_path"],
                   "er":info["er"]["ffnet"]}
     # check to see if this is a batch or an interactive run
-    call_mode = qcutils.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive")
+    call_mode = pfp_utils.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive")
     FFNET_info["call_mode"]= call_mode
     if call_mode.lower()=="interactive":
         #FFNET_info["show_plots"] = True
         # call the FFNET GUI
-        qcrpNN.rpFFNET_gui(cf,ds,FFNET_info)
+        pfp_rpNN.rpFFNET_gui(cf,ds,FFNET_info)
     else:
         if "GUI" in cf:
             if "FFNET" in cf["GUI"]:
-                qcrpNN.rpFFNET_run_nogui(cf,ds,FFNET_info)
+                pfp_rpNN.rpFFNET_run_nogui(cf,ds,FFNET_info)
 
 def ERUsingLasslop(cf, ds, info):
     """
@@ -200,6 +201,8 @@ def ERUsingLasslop(cf, ds, info):
             "window_offset":int(info["er"]["rpLL"][series[0]]["step_size_days"]),
             "fsd_threshold":10}
     ldt = ds.series["DateTime"]["Data"]
+    startdate = ldt[0]
+    enddate = ldt[-1]
     ts = int(ds.globalattributes["time_step"])
     info["ts"] = ts
     site_name = ds.globalattributes["site_name"]
@@ -207,19 +210,19 @@ def ERUsingLasslop(cf, ds, info):
     # get the data and synchronise the gaps
     # *** PUT INTO SEPARATE FUNCTION
     indicator = numpy.ones(nrecs,dtype=numpy.int)
-    Fsd,f,a = qcutils.GetSeriesasMA(ds,"Fsd")
+    Fsd,f,a = pfp_utils.GetSeriesasMA(ds,"Fsd")
     idx = numpy.where(f!=0)[0]
     indicator[idx] = numpy.int(0)
-    D,f,a = qcutils.GetSeriesasMA(ds,"VPD")
+    D,f,a = pfp_utils.GetSeriesasMA(ds,"VPD")
     idx = numpy.where(f!=0)[0]
     indicator[idx] = numpy.int(0)
-    T,f,a = qcutils.GetSeriesasMA(ds,"Ta")
+    T,f,a = pfp_utils.GetSeriesasMA(ds,"Ta")
     idx = numpy.where(f!=0)[0]
     indicator[idx] = numpy.int(0)
-    ustar,f,a = qcutils.GetSeriesasMA(ds,"ustar")
+    ustar,f,a = pfp_utils.GetSeriesasMA(ds,"ustar")
     idx = numpy.where(f!=0)[0]
     indicator[idx] = numpy.int(0)
-    Fc,f,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
+    Fc,f,Fc_attr = pfp_utils.GetSeriesasMA(ds,"Fc")
     idx = numpy.where(f!=0)[0]
     indicator[idx] = numpy.int(0)
     indicator_night = numpy.copy(indicator)
@@ -237,12 +240,12 @@ def ERUsingLasslop(cf, ds, info):
     ER = numpy.ma.masked_where(indicator_night==0,Fc)
     # loop over the windows and get E0
     logger.info(" Estimating the rb and E0 parameters")
-    LT_results = qcrpLL.get_LT_params(ldt,ER,T_night,info)
+    LT_results = pfp_rpLL.get_LT_params(ldt,ER,T_night,info)
     # interpolate parameters
     # this should have a check to make sure we are not interpolating with a small
     # number of points
-    LT_results["rb_int"] = qcrpLL.interp_params(LT_results["rb"])
-    LT_results["E0_int"] = qcrpLL.interp_params(LT_results["E0"])
+    LT_results["rb_int"] = pfp_rpLL.interp_params(LT_results["rb"])
+    LT_results["E0_int"] = pfp_rpLL.interp_params(LT_results["E0"])
     # get series of rb and E0 from LT at the tower stime step
     # *** PUT INTO SEPARATE FUNCTION
     ntsperday = float(24)*float(60)/float(ts)
@@ -260,9 +263,9 @@ def ERUsingLasslop(cf, ds, info):
     # ***
     # and get the ecosystem respiration at the tower time step
     logger.info(" Calculating ER using Lloyd-Taylor")
-    ER_LT = qcrpLL.ER_LloydTaylor(T,rb_tts,E0_tts)
+    ER_LT = pfp_rpLL.ER_LloydTaylor(T,rb_tts,E0_tts)
     # plot the L&T parameters and ER_LT
-    #qcrpLL.plot_LTparams_ER(ldt,ER,ER_LT,LT_results)
+    #pfp_rpLL.plot_LTparams_ER(ldt,ER,ER_LT,LT_results)
     # get a day time indicator
     indicator_day = numpy.copy(indicator)
     # apply a day/night filter
@@ -275,14 +278,14 @@ def ERUsingLasslop(cf, ds, info):
     NEE_day = numpy.ma.masked_where(indicator_day==0,Fc)
     # get the Lasslop parameters
     logger.info(" Estimating the Lasslop parameters")
-    LL_results = qcrpLL.get_LL_params(ldt,Fsd_day,D_day,T_day,NEE_day,ER,LT_results,info)
+    LL_results = pfp_rpLL.get_LL_params(ldt,Fsd_day,D_day,T_day,NEE_day,ER,LT_results,info)
     # interpolate parameters
-    LL_results["alpha_int"] = qcrpLL.interp_params(LL_results["alpha"])
-    LL_results["beta_int"] = qcrpLL.interp_params(LL_results["beta"])
-    LL_results["k_int"] = qcrpLL.interp_params(LL_results["k"])
-    LL_results["rb_int"] = qcrpLL.interp_params(LL_results["rb"])
-    LL_results["E0_int"] = qcrpLL.interp_params(LL_results["E0"])
-    #qcrpLL.plot_LLparams(LT_results,LL_results)
+    LL_results["alpha_int"] = pfp_rpLL.interp_params(LL_results["alpha"])
+    LL_results["beta_int"] = pfp_rpLL.interp_params(LL_results["beta"])
+    LL_results["k_int"] = pfp_rpLL.interp_params(LL_results["k"])
+    LL_results["rb_int"] = pfp_rpLL.interp_params(LL_results["rb"])
+    LL_results["E0_int"] = pfp_rpLL.interp_params(LL_results["E0"])
+    #pfp_rpLL.plot_LLparams(LT_results,LL_results)
     # get the Lasslop parameters at the tower time step
     # *** PUT INTO SEPARATE FUNCTION
     ntsperday = float(24)*float(60)/float(ts)
@@ -301,49 +304,59 @@ def ERUsingLasslop(cf, ds, info):
     rb = LL_results["rb_tts"]
     units = "umol/m2/s"
     long_name = "Base respiration at Tref from Lloyd-Taylor method used in Lasslop et al (2010)"
-    attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
+    attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units=units)
     flag = numpy.zeros(len(rb),dtype=numpy.int32)
-    qcutils.CreateSeries(ds,"rb_LL",rb,flag,attr)
+    pfp_utils.CreateSeries(ds,"rb_LL",rb,flag,attr)
     E0 = LL_results["E0_tts"]
     units = "C"
     long_name = "Activation energy from Lloyd-Taylor method used in Lasslop et al (2010)"
-    attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
-    qcutils.CreateSeries(ds,"E0_LL",E0,flag,attr)
+    attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units=units)
+    pfp_utils.CreateSeries(ds,"E0_LL",E0,flag,attr)
     logger.info(" Calculating ER using Lloyd-Taylor with Lasslop parameters")
-    ER_LL = qcrpLL.ER_LloydTaylor(T,rb,E0)
+    ER_LL = pfp_rpLL.ER_LloydTaylor(T,rb,E0)
     # write ecosystem respiration modelled by Lasslop et al (2010)
     units = Fc_attr["units"]
     long_name = "Ecosystem respiration modelled by Lasslop et al (2010)"
-    attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
-    qcutils.CreateSeries(ds,"ER_LL_all",ER_LL,flag,attr)
+    attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units=units)
+    pfp_utils.CreateSeries(ds,"ER_LL_all",ER_LL,flag,attr)
     # parameters associated with GPP and GPP itself
     alpha = LL_results["alpha_tts"]
     units = "umol/J"
     long_name = "Canopy light use efficiency"
-    attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
-    qcutils.CreateSeries(ds,"alpha_LL",alpha,flag,attr)
+    attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units=units)
+    pfp_utils.CreateSeries(ds,"alpha_LL",alpha,flag,attr)
     beta = LL_results["beta_tts"]
     units = "umol/m2/s"
     long_name = "Maximum CO2 uptake at light saturation"
-    attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
-    qcutils.CreateSeries(ds,"beta_LL",beta,flag,attr)
+    attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units=units)
+    pfp_utils.CreateSeries(ds,"beta_LL",beta,flag,attr)
     k = LL_results["k_tts"]
     units = "none"
     long_name = "Sensitivity of response to VPD"
-    attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
-    qcutils.CreateSeries(ds,"k_LL",k,flag,attr)
-    GPP_LL = qcrpLL.GPP_RHLRC_D(Fsd,D,alpha,beta,k,D0)
+    attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units=units)
+    pfp_utils.CreateSeries(ds,"k_LL",k,flag,attr)
+    GPP_LL = pfp_rpLL.GPP_RHLRC_D(Fsd,D,alpha,beta,k,D0)
     units = "umol/m2/s"
     long_name = "GPP modelled by Lasslop et al (2010)"
-    attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
-    qcutils.CreateSeries(ds,"GPP_LL_all",GPP_LL,flag,attr)
+    attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units=units)
+    pfp_utils.CreateSeries(ds,"GPP_LL_all",GPP_LL,flag,attr)
     # NEE
     data = {"Fsd":Fsd,"T":T,"D":D}
-    NEE_LL = qcrpLL.NEE_RHLRC_D(data,alpha,beta,k,D0,rb,E0)
+    NEE_LL = pfp_rpLL.NEE_RHLRC_D(data,alpha,beta,k,D0,rb,E0)
     units = "umol/m2/s"
     long_name = "NEE modelled by Lasslop et al (2010)"
-    attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
-    qcutils.CreateSeries(ds,"NEE_LL_all",NEE_LL,flag,attr)
+    attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units=units)
+    pfp_utils.CreateSeries(ds,"NEE_LL_all",NEE_LL,flag,attr)
+    # plot the respiration estimated using Lasslop et al
+    # set the figure number
+    if len(plt.get_fignums())==0:
+        fig_num = 0
+    else:
+        fig_num = plt.get_fignums()[-1] + 1
+    title = site_name+" : ER estimated using Lasslop et al"
+    pd = pfp_rpLL.rpLL_initplot(site_name=site_name,label="ER",fig_num=fig_num,title=title,
+                         nDrivers=len(data.keys()),startdate=str(startdate),enddate=str(enddate))
+    #pfp_rpLT.rpLT_plot(pd, ds, series, drivers, target, output, LT_info)
 
 def ERUsingLloydTaylor(cf, ds, info):
     """
@@ -358,7 +371,7 @@ def ERUsingLloydTaylor(cf, ds, info):
     if "rpLT" not in info["er"]: return
     logger.info("Estimating ER using Lloyd-Taylor")
     long_name = "Ecosystem respiration modelled by Lloyd-Taylor"
-    ER_attr = qcutils.MakeAttributeDictionary(long_name=long_name,units="umol/m2/s")
+    ER_attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units="umol/m2/s")
     ts = int(ds.globalattributes["time_step"])
     site_name = ds.globalattributes["site_name"]
     ldt = ds.series["DateTime"]["Data"]
@@ -371,18 +384,18 @@ def ERUsingLloydTaylor(cf, ds, info):
                "plot_path":cf["Files"]["plot_path"],
                "show_plots":False,"time_step":ts,"nperday":nperday,
                "er":info["er"]["rpLT"]}
-    call_mode = qcutils.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive")
+    call_mode = pfp_utils.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive")
     LT_info["call_mode"]= call_mode
-    #if call_mode.lower()=="interactive": LT_info["show_plots"] = True
+    if call_mode.lower()=="interactive": LT_info["show_plots"] = True
     # set the figure number
     if len(plt.get_fignums())==0:
         fig_num = 0
     else:
         fig_num = plt.get_fignums()[-1]
     # open the Excel file
-    nc_name = qcio.get_outfilenamefromcf(cf)
+    nc_name = pfp_io.get_outfilenamefromcf(cf)
     xl_name = nc_name.replace(".nc","_L&T.xls")
-    xl_file = qcio.xl_open_write(xl_name)
+    xl_file = pfp_io.xl_open_write(xl_name)
     if xl_file=='':
         logger.error("ERUsingLloydTaylor: error opening Excel file "+xl_name)
         return
@@ -398,7 +411,7 @@ def ERUsingLloydTaylor(cf, ds, info):
         # get a local copy of the config dictionary
         configs_dict = LT_info["er"][series]["configs_dict"]
         configs_dict["measurement_interval"] = float(ts)/60.0
-        data_dict = qcrpLT.get_data_dict(ds,configs_dict)
+        data_dict = pfp_rpLT.get_data_dict(ds,configs_dict)
         # *** start of code taken from Ian McHugh's Partition_NEE.main ***
         # If user wants individual window plots, check whether output directories
         # are present, and create if not
@@ -410,7 +423,7 @@ def ERUsingLloydTaylor(cf, ds, info):
         datetime_array = data_dict.pop('date_time')
         (step_date_index_dict,
          all_date_index_dict,
-         year_index_dict) = qcrpLT.get_dates(datetime_array, configs_dict)
+         year_index_dict) = pfp_rpLT.get_dates(datetime_array, configs_dict)
         date_array = numpy.array(all_date_index_dict.keys())
         date_array.sort()
         step_date_array = numpy.array(step_date_index_dict.keys())
@@ -436,12 +449,12 @@ def ERUsingLloydTaylor(cf, ds, info):
         series_est_dict = {var: empty_array.copy() for var in series_rslt_list}
         series_est_dict['date_time'] = datetime_array
         # Create a dictionary containing initial guesses for each parameter
-        params_dict = qcrpLT.make_initial_guess_dict(data_dict)
+        params_dict = pfp_rpLT.make_initial_guess_dict(data_dict)
         # *** start of annual estimates of E0 code ***
         # this section could be a separate routine
         # Get the annual estimates of Eo
         logger.info(" Optimising fit for Eo for each year")
-        Eo_dict, EoQC_dict, Eo_raw_dict, EoQC_raw_dict, status = qcrpLT.optimise_annual_Eo(data_dict,params_dict,configs_dict,year_index_dict)
+        Eo_dict, EoQC_dict, Eo_raw_dict, EoQC_raw_dict, status = pfp_rpLT.optimise_annual_Eo(data_dict,params_dict,configs_dict,year_index_dict)
         if status["code"] != 0:
             msg = " Estimation of ER using Lloyd-Taylor failed with message"
             logger.error(msg)
@@ -462,15 +475,15 @@ def ERUsingLloydTaylor(cf, ds, info):
         E0_raw_results["variables"]["E0"] = {"data":[float(Eo_raw_dict[yr]) for yr in Eo_raw_dict.keys()],
                                              "attr":{"units":"none","format":"0"}}
         # write the E0 values to the Excel file
-        qcio.xl_write_data(xl_sheet,E0_raw_results["variables"],xlCol=0)
-        qcio.xl_write_data(xl_sheet,E0_results["variables"],xlCol=2)
+        pfp_io.xl_write_data(xl_sheet,E0_raw_results["variables"],xlCol=0)
+        pfp_io.xl_write_data(xl_sheet,E0_results["variables"],xlCol=2)
         # *** end of annual estimates of E0 code ***
         # *** start of estimating rb code for each window ***
         # this section could be a separate routine
         # Rewrite the parameters dictionary so that there will be one set of
         # defaults for the free and one set of defaults for the fixed parameters
-        params_dict = {'fixed_rb': qcrpLT.make_initial_guess_dict(data_dict),
-                       'free_rb': qcrpLT.make_initial_guess_dict(data_dict)}
+        params_dict = {'fixed_rb': pfp_rpLT.make_initial_guess_dict(data_dict),
+                       'free_rb': pfp_rpLT.make_initial_guess_dict(data_dict)}
         # Do nocturnal optimisation for each window
         logger.info(" Optimising fit for rb using nocturnal data")
         for date in step_date_array:
@@ -478,17 +491,17 @@ def ERUsingLloydTaylor(cf, ds, info):
             param_index = numpy.where(date_array == date)
             params_dict['fixed_rb']['Eo_default'] = opt_params_dict['Eo'][param_index]
             # Subset the data and check length
-            sub_dict = qcrpLT.subset_window(data_dict, step_date_index_dict[date])
-            noct_dict = qcrpLT.subset_window(data_dict, step_date_index_dict[date])
+            sub_dict = pfp_rpLT.subset_window(data_dict, step_date_index_dict[date])
+            noct_dict = pfp_rpLT.subset_window(data_dict, step_date_index_dict[date])
             # Subset again to remove daytime and then nan
-            #noct_dict = qcrpLT.subset_daynight(sub_dict, noct_flag = True)
+            #noct_dict = pfp_rpLT.subset_daynight(sub_dict, noct_flag = True)
             len_all_noct = len(noct_dict['NEE'])
-            noct_dict = qcrpLT.subset_nan(noct_dict)
+            noct_dict = pfp_rpLT.subset_nan(noct_dict)
             len_valid_noct = len(noct_dict['NEE'])
             # Do optimisation only if data passes minimum threshold
             if round(float(len_valid_noct) / len_all_noct * 100) > \
             configs_dict['minimum_pct_noct_window']:
-                params, error_state = qcrpLT.optimise_rb(noct_dict,params_dict['fixed_rb'])
+                params, error_state = pfp_rpLT.optimise_rb(noct_dict,params_dict['fixed_rb'])
             else:
                 params, error_state = [numpy.nan], 10
             # Send data to the results dict
@@ -498,9 +511,9 @@ def ERUsingLloydTaylor(cf, ds, info):
             if error_state == 0 and configs_dict['output_plots']:
                 this_params_dict = {'Eo': opt_params_dict['Eo'][param_index],
                                     'rb': opt_params_dict['rb_noct'][param_index]}
-                est_series_dict = qcrpLT.estimate_Re_GPP(sub_dict, this_params_dict)
+                est_series_dict = pfp_rpLT.estimate_Re_GPP(sub_dict, this_params_dict)
                 combine_dict = dict(sub_dict, **est_series_dict)
-                qcrpLT.plot_windows(combine_dict, configs_dict, date, noct_flag = True)
+                pfp_rpLT.plot_windows(combine_dict, configs_dict, date, noct_flag = True)
         # get a copy of the rb data before interpolation so we can write it to file
         rb_date = opt_params_dict["date"]
         rb_data = opt_params_dict["rb_noct"]
@@ -513,9 +526,9 @@ def ERUsingLloydTaylor(cf, ds, info):
         rb_results["variables"]["rb_noct"] = {"data":rb_data[idx],
                             "attr":{"units":"none","format":"0.00"}}
         # write to the Excel file
-        qcio.xl_write_data(xl_sheet,rb_results["variables"],xlCol=4)
+        pfp_io.xl_write_data(xl_sheet,rb_results["variables"],xlCol=4)
         # Interpolate
-        opt_params_dict['rb_noct'] = qcrpLT.interp_params(opt_params_dict['rb_noct'])
+        opt_params_dict['rb_noct'] = pfp_rpLT.interp_params(opt_params_dict['rb_noct'])
         # *** end of estimating rb code for each window ***
         # *** start of code to calculate ER from fit parameters
         # this section could be a separate routine
@@ -532,23 +545,23 @@ def ERUsingLloydTaylor(cf, ds, info):
             E0[idx] = E0_val
             rb[idx] = rb_val
         T_label = configs_dict["drivers"]
-        T,T_flag,a = qcutils.GetSeriesasMA(ds,T_label)
-        ER_LT = qcrpLT.TRF(data_dict, E0, rb)
+        T,T_flag,a = pfp_utils.GetSeriesasMA(ds,T_label)
+        ER_LT = pfp_rpLT.TRF(data_dict, E0, rb)
         ER_LT_flag = numpy.empty(len(ER_LT),dtype=numpy.int32)
         ER_LT_flag.fill(30)
-        #ER_LT = qcrpLT.ER_LloydTaylor(T,E0,rb)
+        #ER_LT = pfp_rpLT.ER_LloydTaylor(T,E0,rb)
         target = str(LT_info["er"][series]["target"])
         #drivers = str(configs_dict["drivers"])
         drivers = LT_info["er"][series]["drivers"]
         output = str(configs_dict["output_label"])
         ER_attr["comment1"] = "Drivers were "+str(drivers)
-        qcutils.CreateSeries(ds,output,ER_LT,ER_LT_flag,ER_attr)
+        pfp_utils.CreateSeries(ds,output,ER_LT,ER_LT_flag,ER_attr)
         # plot the respiration estimated using Lloyd-Taylor
         fig_num = fig_num + 1
         title = site_name+" : "+series+" estimated using Lloyd-Taylor"
-        pd = qcrpLT.rpLT_initplot(site_name=site_name,label=target,fig_num=fig_num,title=title,
+        pd = pfp_rpLT.rpLT_initplot(site_name=site_name,label=target,fig_num=fig_num,title=title,
                              nDrivers=len(drivers),startdate=str(startdate),enddate=str(enddate))
-        qcrpLT.rpLT_plot(pd, ds, series, drivers, target, output, LT_info)
+        pfp_rpLT.rpLT_plot(pd, ds, series, drivers, target, output, LT_info)
     # close the Excel workbook
     xl_file.save(xl_name)
 
@@ -561,7 +574,7 @@ def ERUsingSOLO(cf, ds, info):
     Author: PRI
     Date: Back in the day
     Mods:
-     21/8/2017 - moved GetERFromFc from qcls.l6qc() to individual
+     21/8/2017 - moved GetERFromFc from pfp_ls.l6qc() to individual
                  ER estimation routines to allow for multiple sources
                  of ER.
     """
@@ -575,30 +588,30 @@ def ERUsingSOLO(cf, ds, info):
                  "plot_path":cf["Files"]["plot_path"],
                  "er":info["er"]["solo"]}
     # check to see if this is a batch or an interactive run
-    call_mode = qcutils.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive")
+    call_mode = pfp_utils.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive")
     solo_info["call_mode"]= call_mode
     #if call_mode.lower()=="interactive": solo_info["show_plots"] = True
     if call_mode.lower()=="interactive":
         # call the ERUsingSOLO GUI
-        qcrpNN.rpSOLO_gui(cf,ds,solo_info)
+        pfp_rpNN.rpSOLO_gui(cf,ds,solo_info)
     else:
         if "GUI" in cf:
             if "SOLO" in cf["GUI"]:
-                qcrpNN.rpSOLO_run_nogui(cf,ds,solo_info)
+                pfp_rpNN.rpSOLO_run_nogui(cf,ds,solo_info)
 
 def GetERFromFc(cf, ds, info):
     """
     Purpose:
      Get the observed ecosystem respiration from measurements of Fc by
      filtering out daytime periods.  Note that the removal of low tubulence
-     periods has been done by qcck.ApplyTurbulenceFilter() before this
+     periods has been done by pfp_ck.ApplyTurbulenceFilter() before this
      routine is called.
      The Fsd threshold for determining day time and night time and the
      ustar threshold are set in the [Params] section of the L5 control
      file.
      Re-write of the original penned in August 2014
     Usage:
-     qcrp.GetERFromFc(cf,ds)
+     pfp_rp.GetERFromFc(cf,ds)
      where cf is a control file object
            ds is a data structure
     Side effects:
@@ -609,10 +622,10 @@ def GetERFromFc(cf, ds, info):
     ldt = ds.series["DateTime"]["Data"]
     ts = int(ds.globalattributes["time_step"])
     # get the data
-    Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
-    if "solar_altitude" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
-    Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
-    sa,flag,attr = qcutils.GetSeriesasMA(ds,"solar_altitude")
+    Fsd,Fsd_flag,Fsd_attr = pfp_utils.GetSeriesasMA(ds,"Fsd")
+    if "solar_altitude" not in ds.series.keys(): pfp_ts.get_synthetic_fsd(ds)
+    Fsd_syn,flag,attr = pfp_utils.GetSeriesasMA(ds,"Fsd_syn")
+    sa,flag,attr = pfp_utils.GetSeriesasMA(ds,"solar_altitude")
 
     er_type_list = info["er"].keys()
     for er_type in er_type_list:
@@ -621,12 +634,12 @@ def GetERFromFc(cf, ds, info):
             source = info["er"][er_type][label]["source"]
             target = info["er"][er_type][label]["target"]
             ER = {"Label":target}
-            Fc = qcutils.GetVariable(ds, source)
+            Fc = pfp_utils.GetVariable(ds, source)
             # get a copy of the Fc flag and make the attribute dictionary
             ER["Flag"] = numpy.array(Fc["Flag"])
             long_name = "Ecosystem respiration (observed) derived from "+source
             units = Fc["Attr"]["units"]
-            ER["Attr"] = qcutils.MakeAttributeDictionary(long_name=long_name, units=units)
+            ER["Attr"] = pfp_utils.MakeAttributeDictionary(long_name=long_name, units=units)
             # only accept Fc with QC flag value of 0
             Fc["Data"] = numpy.ma.masked_where((Fc["Flag"] != 0), Fc["Data"])
             idx_notok = numpy.where((Fc["Flag"] != 0))[0]
@@ -639,7 +652,7 @@ def GetERFromFc(cf, ds, info):
             ER["Data"] = numpy.ma.masked_where(daynight_indicator["values"] == 0, Fc["Data"], copy=True)
             for item in daynight_indicator["attr"]:
                 ER["Attr"][item] = daynight_indicator["attr"][item]
-            qcutils.CreateVariable(ds, ER)
+            pfp_utils.CreateVariable(ds, ER)
 
     return
 
@@ -668,14 +681,14 @@ def get_daynight_indicator(cf,Fsd,Fsd_syn,sa):
     inds = daynight_indicator["values"]
     attr = daynight_indicator["attr"]
     # get the filter type
-    filter_type = qcutils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
+    filter_type = pfp_utils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
     attr["daynight_filter"] = filter_type
-    use_fsdsyn = qcutils.get_keyvaluefromcf(cf,["Options"],"UseFsdsyn_threshold",default="Yes")
+    use_fsdsyn = pfp_utils.get_keyvaluefromcf(cf,["Options"],"UseFsdsyn_threshold",default="Yes")
     attr["use_fsdsyn"] = use_fsdsyn
     # get the indicator series
     if filter_type.lower()=="fsd":
         # get the Fsd threshold
-        Fsd_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"Fsd_threshold",default=10))
+        Fsd_threshold = int(pfp_utils.get_keyvaluefromcf(cf,["Options"],"Fsd_threshold",default=10))
         attr["Fsd_threshold"] = str(Fsd_threshold)
         # we are using Fsd only to define day/night
         if use_fsdsyn.lower()=="yes":
@@ -685,7 +698,7 @@ def get_daynight_indicator(cf,Fsd,Fsd_syn,sa):
         inds[idx] = numpy.int32(1)
     elif filter_type.lower()=="sa":
         # get the solar altitude threshold
-        sa_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
+        sa_threshold = int(pfp_utils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
         attr["sa_threshold"] = str(sa_threshold)
         # we are using solar altitude to define day/night
         idx = numpy.ma.where(sa<sa_threshold)[0]
@@ -721,14 +734,14 @@ def get_day_indicator(cf,Fsd,Fsd_syn,sa):
     inds = day_indicator["values"]
     attr = day_indicator["attr"]
     # get the filter type
-    filter_type = qcutils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
+    filter_type = pfp_utils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
     attr["daynight_filter_type"] = filter_type
-    use_fsdsyn = qcutils.get_keyvaluefromcf(cf,["Options"],"UseFsdsyn_threshold",default="Yes")
+    use_fsdsyn = pfp_utils.get_keyvaluefromcf(cf,["Options"],"UseFsdsyn_threshold",default="Yes")
     attr["use_fsdsyn"] = use_fsdsyn
     # get the indicator series
     if filter_type.lower()=="fsd":
         # get the Fsd threshold
-        Fsd_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"Fsd_threshold",default=10))
+        Fsd_threshold = int(pfp_utils.get_keyvaluefromcf(cf,["Options"],"Fsd_threshold",default=10))
         attr["Fsd_threshold"] = str(Fsd_threshold)
         # we are using Fsd only to define day/night
         if use_fsdsyn.lower()=="yes":
@@ -738,7 +751,7 @@ def get_day_indicator(cf,Fsd,Fsd_syn,sa):
         inds[idx] = numpy.int32(0)
     elif filter_type.lower()=="sa":
         # get the solar altitude threshold
-        sa_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
+        sa_threshold = int(pfp_utils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
         attr["sa_threshold"] = str(sa_threshold)
         # we are using solar altitude to define day/night
         index = numpy.ma.where(sa<sa_threshold)[0]
@@ -774,7 +787,7 @@ def get_evening_indicator(cf,Fsd,Fsd_syn,sa,ts):
     evening_indicator = {"values":numpy.zeros(len(Fsd),dtype=numpy.int32),
                          "attr":{}}
     attr = evening_indicator["attr"]
-    opt = qcutils.get_keyvaluefromcf(cf,["Options"],"EveningFilterLength",default="0")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["Options"],"EveningFilterLength",default="0")
     num_hours = int(opt)
     if num_hours<=0 or num_hours>=12:
         evening_indicator = numpy.zeros(len(Fsd))
@@ -817,14 +830,14 @@ def get_night_indicator(cf,Fsd,Fsd_syn,sa):
     inds = night_indicator["values"]
     attr = night_indicator["attr"]
     # get the filter type
-    filter_type = qcutils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
+    filter_type = pfp_utils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
     attr["daynight_filter_type"] = filter_type
-    use_fsdsyn = qcutils.get_keyvaluefromcf(cf,["Options"],"UseFsdsyn_threshold",default="Yes")
+    use_fsdsyn = pfp_utils.get_keyvaluefromcf(cf,["Options"],"UseFsdsyn_threshold",default="Yes")
     attr["use_fsdsyn"] = use_fsdsyn
     # get the indicator series
     if filter_type.lower()=="fsd":
         # get the Fsd threshold
-        Fsd_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"Fsd_threshold",default=10))
+        Fsd_threshold = int(pfp_utils.get_keyvaluefromcf(cf,["Options"],"Fsd_threshold",default=10))
         attr["Fsd_threshold"] = str(Fsd_threshold)
         # we are using Fsd only to define day/night
         if use_fsdsyn.lower()=="yes":
@@ -834,7 +847,7 @@ def get_night_indicator(cf,Fsd,Fsd_syn,sa):
         inds[idx] = numpy.int32(1)
     elif filter_type.lower()=="sa":
         # get the solar altitude threshold
-        sa_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
+        sa_threshold = int(pfp_utils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
         attr["sa_threshold"] = str(sa_threshold)
         # we are using solar altitude to define day/night
         index = numpy.ma.where(sa<sa_threshold)[0]
@@ -845,7 +858,7 @@ def get_night_indicator(cf,Fsd,Fsd_syn,sa):
     return night_indicator
 
 def get_turbulence_indicator(cf,ldt,ustar,L,ustar_dict,ts,attr):
-    opt = qcutils.get_keyvaluefromcf(cf,["Options"],"TurbulenceFilter",default="ustar")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["Options"],"TurbulenceFilter",default="ustar")
     if opt.lower()=="ustar":
         turbulence_indicator = get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts,attr)
     elif opt.lower()=="l":
@@ -876,7 +889,7 @@ def get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts):
      where;
       ldt is a list of datetimes
       ustar is a series of ustar values (ndarray)
-      ustar_dict is a dictionary of ustar thresholds returned by qcrp.get_ustar_thresholds
+      ustar_dict is a dictionary of ustar thresholds returned by pfp_rp.get_ustar_thresholds
       ts is the time step for ustar
     and;
      indicators["turbulence"] is a dictionary containing
@@ -900,8 +913,8 @@ def get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts):
         ustar_threshold = float(ustar_dict[year]["ustar_mean"])
         attr["ustar_threshold_"+str(year)] = str(ustar_threshold)
         # get the start and end datetime indices
-        si = qcutils.GetDateIndex(ldt,start_date,ts=ts,default=0,match='exact')
-        ei = qcutils.GetDateIndex(ldt,end_date,ts=ts,default=len(ldt),match='exact')
+        si = pfp_utils.GetDateIndex(ldt,start_date,ts=ts,default=0,match='exact')
+        ei = pfp_utils.GetDateIndex(ldt,end_date,ts=ts,default=len(ldt),match='exact')
         # set the QC flag
         idx = numpy.ma.where(ustar[si:ei]>=ustar_threshold)[0]
         inds[si:ei][idx] = numpy.int32(1)
@@ -923,7 +936,7 @@ def get_turbulence_indicator_ustar_evg(ldt,ind_day,ind_ustar,ustar,ustar_dict,ts
       ldt is a list of datetimes
       ind_day is a day/night indicator
       ustar is a series of ustar values (ndarray)
-      ustar_dict is a dictionary of ustar thresholds returned by qcrp.get_ustar_thresholds
+      ustar_dict is a dictionary of ustar thresholds returned by pfp_rp.get_ustar_thresholds
       ts is the time step for ustar
     and;
      indicators["turbulence"] is a dictionary containing
@@ -970,7 +983,7 @@ def get_ustarthreshold_from_cf(cf,ldt):
      the control file.  If no [ustar_threshold] section is found then a
      default value of 0.25 is used.
     Usage:
-     ustar_dict = qcrp.get_ustarthreshold_from_cf(cf,ldt)
+     ustar_dict = pfp_rp.get_ustarthreshold_from_cf(cf,ldt)
      where cf is the control file object
            ldt is the Python datetime series from the data structure
     Author: PRI
@@ -1006,7 +1019,7 @@ def get_ustarthreshold_from_cpdresults(cf):
      the CPD results file.  If there is no CPD results file name found in the
      control file then return an empty dictionary
     Usage:
-     ustar_dict = qcrp.get_ustarthreshold_from_cpdresults(cf)
+     ustar_dict = pfp_rp.get_ustarthreshold_from_cpdresults(cf)
      where cf is the control file object
            ustar_dict is a dictionary of ustar thtresholds, 1 entry per year
     Author: PRI
@@ -1041,7 +1054,7 @@ def get_ustar_thresholds_annual(ldt,ustar_threshold):
      Returns a dictionary containing ustar thresholds for all years using
      a single value enetred as the ustar_threshold argument.
     Usage:
-     ustar_dict = qcrp.get_ustar_thresholds_annual(ldt,ustar_threshold)
+     ustar_dict = pfp_rp.get_ustar_thresholds_annual(ldt,ustar_threshold)
      where ldt is a list of datetime objects
            ustar_threshold is the value to be used
     Author: PRI
@@ -1069,18 +1082,18 @@ def L6_summary(cf, ds):
     # set up a dictionary of lists
     series_dict = L6_summary_createseriesdict(cf, ds)
     # open the Excel workbook
-    out_name = qcio.get_outfilenamefromcf(cf)
+    out_name = pfp_io.get_outfilenamefromcf(cf)
     xl_name = out_name.replace(".nc", "_Summary.xls")
     try:
-        xl_file = qcio.xl_open_write(xl_name)
+        xl_file = pfp_io.xl_open_write(xl_name)
     except IOError:
         logger.error(" L6_summary: error opening Excel file "+xl_name)
         return 0
     # open the netCDF file for the summary results
     nc_name = out_name.replace(".nc", "_Summary.nc")
     try:
-        nc_file = qcio.nc_open_write(nc_name, nctype='NETCDF4')
-        qcio.nc_write_globalattributes(nc_file, ds, flag_defs=False)
+        nc_file = pfp_io.nc_open_write(nc_name, nctype='NETCDF4')
+        pfp_io.nc_write_globalattributes(nc_file, ds, flag_defs=False)
     except IOError:
         logger.error(" L6_summary: error opening netCDF file "+nc_name)
         return 0
@@ -1145,13 +1158,13 @@ def L6_summary_plotdaily(cf, ds, daily_dict):
         fig.canvas.set_window_title("Carbon Budget: "+item.replace("_",""))
         plt.figtext(0.5,0.95,title_str,horizontalalignment='center')
         plt.plot(ddv["DateTime"]["data"],ddv["NEE"+item]["data"],'b-',alpha=0.3)
-        plt.plot(ddv["DateTime"]["data"],qcts.smooth(ddv["NEE"+item]["data"],window_len=30),
+        plt.plot(ddv["DateTime"]["data"],pfp_ts.smooth(ddv["NEE"+item]["data"],window_len=30),
                  'b-',linewidth=2,label="NEE"+item+" (30 day filter)")
         plt.plot(ddv["DateTime"]["data"],ddv["GPP"+item]["data"],'g-',alpha=0.3)
-        plt.plot(ddv["DateTime"]["data"],qcts.smooth(ddv["GPP"+item]["data"],window_len=30),
+        plt.plot(ddv["DateTime"]["data"],pfp_ts.smooth(ddv["GPP"+item]["data"],window_len=30),
                  'g-',linewidth=2,label="GPP"+item+" (30 day filter)")
         plt.plot(ddv["DateTime"]["data"],ddv["ER"+item]["data"],'r-',alpha=0.3)
-        plt.plot(ddv["DateTime"]["data"],qcts.smooth(ddv["ER"+item]["data"],window_len=30),
+        plt.plot(ddv["DateTime"]["data"],pfp_ts.smooth(ddv["ER"+item]["data"],window_len=30),
                  'r-',linewidth=2,label="ER"+item+" (30 day filter)")
         plt.axhline(0)
         plt.xlabel("Date")
@@ -1182,7 +1195,7 @@ def L6_summary_plotdaily(cf, ds, daily_dict):
     for label, line in zip(["Fn", "Fg", "Fh", "Fe"], ["k-", "g-", "r-", "b-"]):
         if label in daily_dict["variables"]:
             plt.plot(ddv["DateTime"]["data"], ddv[label]["data"], line, alpha=0.3)
-            plt.plot(ddv["DateTime"]["data"], qcts.smooth(ddv[label]["data"], window_len=30),
+            plt.plot(ddv["DateTime"]["data"], pfp_ts.smooth(ddv[label]["data"], window_len=30),
                      line, linewidth=2, label=label+" (30 day filter)")
     plt.xlabel("Date")
     plt.ylabel(ddv["Fn"]["attr"]["units"])
@@ -1204,6 +1217,8 @@ def L6_summary_plotdaily(cf, ds, daily_dict):
 
 def L6_summary_plotcumulative(cf, ds, cumulative_dict):
     ts = int(ds.globalattributes["time_step"])
+    #max_points = int(366*24*float(60)/ts)
+    max_points = int(366*24)
     # cumulative plots
     color_list = ["blue","red","green","yellow","magenta","black","cyan","brown"]
     year_list = cumulative_dict.keys()
@@ -1218,6 +1233,7 @@ def L6_summary_plotcumulative(cf, ds, cumulative_dict):
     # do the plots
     site_name = ds.globalattributes["site_name"]
     title_str = site_name+": "+year_list[0]+" to "+year_list[-1]
+    xlabel_list = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]
     for item in type_list:
         if cf["Options"]["call_mode"].lower()=="interactive":
             plt.ion()
@@ -1228,46 +1244,66 @@ def L6_summary_plotcumulative(cf, ds, cumulative_dict):
         plt.suptitle(title_str)
         plt.subplot(221)
         plt.title("NEE: "+item.replace("_",""),fontsize=12)
+        max_x = 0
         for n,year in enumerate(year_list):
             cdyv = cumulative_dict[year]["variables"]
             x = numpy.arange(0,len(cdyv["NEE"+item]["data"]))*ts/float(60)
+            max_x = max([max_x, max(x)])
             plt.plot(x,cdyv["NEE"+item]["data"],color=color_list[numpy.mod(n,8)],
                      label=str(year))
-            plt.xlabel("Hour of Year")
-            plt.ylabel(cdyv["NEE"+item]["attr"]["units"])
-            plt.legend(loc='lower left',prop={'size':8})
+        plt.xlim([0, max_x])
+        xlabel_posn = range(0, int(max_x), int(max_x/len(xlabel_list)))
+        pylab.xticks(xlabel_posn, xlabel_list)
+        plt.xlabel("Month")
+        plt.ylabel(cdyv["NEE"+item]["attr"]["units"])
+        plt.legend(loc='lower left',prop={'size':8})
         plt.subplot(222)
         plt.title("GPP: "+item.replace("_",""),fontsize=12)
+        max_x = 0
         for n,year in enumerate(year_list):
             cdyv = cumulative_dict[year]["variables"]
             x = numpy.arange(0,len(cdyv["GPP"+item]["data"]))*ts/float(60)
+            max_x = max([max_x, max(x)])
             plt.plot(x,cdyv["GPP"+item]["data"],color=color_list[numpy.mod(n,8)],
                      label=str(year))
-            plt.xlabel("Hour of Year")
-            plt.ylabel(cdyv["GPP"+item]["attr"]["units"])
-            plt.legend(loc='lower right',prop={'size':8})
+        plt.xlim([0, max_x])
+        xlabel_posn = range(0, int(max_x), int(max_x/len(xlabel_list)))
+        pylab.xticks(xlabel_posn, xlabel_list)
+        plt.xlabel("Month")
+        plt.ylabel(cdyv["GPP"+item]["attr"]["units"])
+        plt.legend(loc='lower right',prop={'size':8})
         plt.subplot(223)
         plt.title("ER: "+item.replace("_",""),fontsize=12)
+        max_x = 0
         for n,year in enumerate(year_list):
             cdyv = cumulative_dict[year]["variables"]
             x = numpy.arange(0,len(cdyv["ER"+item]["data"]))*ts/float(60)
+            max_x = max([max_x, max(x)])
             plt.plot(x,cdyv["ER"+item]["data"],color=color_list[numpy.mod(n,8)],
                      label=str(year))
-            plt.xlabel("Hour of Year")
-            plt.ylabel(cdyv["ER"+item]["attr"]["units"])
-            plt.legend(loc='lower right',prop={'size':8})
+        plt.xlim([0, max_x])
+        xlabel_posn = range(0, int(max_x), int(max_x/len(xlabel_list)))
+        pylab.xticks(xlabel_posn, xlabel_list)
+        plt.xlabel("Month")
+        plt.ylabel(cdyv["ER"+item]["attr"]["units"])
+        plt.legend(loc='lower right',prop={'size':8})
         plt.subplot(224)
         plt.title("ET & Precip",fontsize=12)
+        max_x = 0
         for n,year in enumerate(year_list):
             cdyv = cumulative_dict[year]["variables"]
             x = numpy.arange(0,len(cdyv["ET"]["data"]))*ts/float(60)
+            max_x = max([max_x, max(x)])
             plt.plot(x,cdyv["ET"]["data"],color=color_list[numpy.mod(n,8)],
                      label=str(year))
             plt.plot(x,cdyv["Precip"]["data"],color=color_list[numpy.mod(n,8)],
                      linestyle='--')
-            plt.xlabel("Hour of Year")
-            plt.ylabel(cdyv["ET"]["attr"]["units"])
-            plt.legend(loc='upper left',prop={'size':8})
+        plt.xlim([0, max_x])
+        xlabel_posn = range(0, int(max_x), int(max_x/len(xlabel_list)))
+        pylab.xticks(xlabel_posn, xlabel_list)
+        plt.xlabel("Month")
+        plt.ylabel(cdyv["ET"]["attr"]["units"])
+        plt.legend(loc='upper left',prop={'size':8})
         plt.tight_layout(rect=[0, 0, 1, 0.98])
         # save a hard copy of the plot
         sdt = year_list[0]
@@ -1377,8 +1413,8 @@ def L6_summary_daily(ds, series_dict):
     logger.info(" Doing the daily summary (data) at L6")
     dt = ds.series["DateTime"]["Data"]
     ts = int(ds.globalattributes["time_step"])
-    si = qcutils.GetDateIndex(dt,str(dt[0]),ts=ts,default=0,match="startnextday")
-    ei = qcutils.GetDateIndex(dt,str(dt[-1]),ts=ts,default=len(dt)-1,match="endpreviousday")
+    si = pfp_utils.GetDateIndex(dt,str(dt[0]),ts=ts,default=0,match="startnextday")
+    ei = pfp_utils.GetDateIndex(dt,str(dt[-1]),ts=ts,default=len(dt)-1,match="endpreviousday")
     ldt = dt[si:ei+1]
     ntsInDay = int(24.0*60.0/float(ts))
     nDays = int(len(ldt))/ntsInDay
@@ -1399,9 +1435,9 @@ def L6_summary_daily(ds, series_dict):
     for item in series_list:
         if item not in ds.series.keys(): continue
         daily_dict["variables"][item] = {"data":[],"attr":{}}
-        variable = qcutils.GetVariable(ds, item, start=si, end=ei)
+        variable = pfp_utils.GetVariable(ds, item, start=si, end=ei)
         if item in series_dict["lists"]["co2"]:
-            variable = qcutils.convert_units_func(ds, variable, "gC/m2")
+            variable = pfp_utils.convert_units_func(ds, variable, "gC/m2")
             daily_dict["variables"][item]["attr"]["units"] = "gC/m2"
         else:
             daily_dict["variables"][item]["attr"]["units"] = variable["Attr"]["units"]
@@ -1461,13 +1497,13 @@ def L6_summary_write_ncfile(nc_file, nc_group, data_dict):
     # create the group in the netCDF file
     nc_group = nc_file.createGroup(nc_group)
     # write the data to the group
-    qcio.nc_write_data(nc_group, data_dict)
+    pfp_io.nc_write_data(nc_group, data_dict)
     return
 
 def L6_summary_write_xlfile(xl_file,sheet_name,data_dict):
     # add the daily worksheet to the summary Excel file
     xl_sheet = xl_file.add_sheet(sheet_name)
-    qcio.xl_write_data(xl_sheet,data_dict["variables"])
+    pfp_io.xl_write_data(xl_sheet,data_dict["variables"])
 
 def L6_summary_monthly(ds,series_dict):
     """
@@ -1484,7 +1520,7 @@ def L6_summary_monthly(ds,series_dict):
     logger.info(" Doing the monthly summaries at L6")
     dt = ds.series["DateTime"]["Data"]
     ts = int(ds.globalattributes["time_step"])
-    si = qcutils.GetDateIndex(dt,str(dt[0]),ts=ts,default=0,match="startnextmonth")
+    si = pfp_utils.GetDateIndex(dt,str(dt[0]),ts=ts,default=0,match="startnextmonth")
     ldt = dt[si:]
     monthly_dict = {"globalattributes":{}, "variables":{}}
     # copy the global attributes
@@ -1507,14 +1543,14 @@ def L6_summary_monthly(ds,series_dict):
     last_date = ldt[-1]
     while start_date<=last_date:
         # *** The Elise Pendall bug fix ***
-        si = qcutils.GetDateIndex(dt, str(start_date), ts=ts, default=0)
-        ei = qcutils.GetDateIndex(dt, str(end_date), ts=ts, default=len(dt)-1)
+        si = pfp_utils.GetDateIndex(dt, str(start_date), ts=ts, default=0)
+        ei = pfp_utils.GetDateIndex(dt, str(end_date), ts=ts, default=len(dt)-1)
         monthly_dict["variables"]["DateTime"]["data"].append(dt[si])
         for item in series_list:
             if item not in ds.series.keys(): continue
-            variable = qcutils.GetVariable(ds, item, start=si, end=ei)
+            variable = pfp_utils.GetVariable(ds, item, start=si, end=ei)
             if item in series_dict["lists"]["co2"]:
-                variable = qcutils.convert_units_func(ds, variable, "gC/m2")
+                variable = pfp_utils.convert_units_func(ds, variable, "gC/m2")
                 monthly_dict["variables"][item]["attr"]["units"] = "gC/m2"
             else:
                 monthly_dict["variables"][item]["attr"]["units"] = variable["Attr"]["units"]
@@ -1550,8 +1586,8 @@ def L6_summary_annual(ds, series_dict):
     dt = ds.series["DateTime"]["Data"]
     ts = int(ds.globalattributes["time_step"])
     nperDay = int(24/(float(ts)/60.0)+0.5)
-    si = qcutils.GetDateIndex(dt, str(dt[0]), ts=ts, default=0, match="startnextday")
-    ei = qcutils.GetDateIndex(dt, str(dt[-1]), ts=ts, default=len(dt)-1, match="endpreviousday")
+    si = pfp_utils.GetDateIndex(dt, str(dt[0]), ts=ts, default=0, match="startnextday")
+    ei = pfp_utils.GetDateIndex(dt, str(dt[-1]), ts=ts, default=len(dt)-1, match="endpreviousday")
     ldt = dt[si:ei+1]
     start_year = ldt[0].year
     end_year = ldt[-1].year
@@ -1579,15 +1615,15 @@ def L6_summary_annual(ds, series_dict):
         elif ts==60:
             start_date = str(year)+"-01-01 01:00"
         end_date = str(year+1)+"-01-01 00:00"
-        si = qcutils.GetDateIndex(dt,start_date,ts=ts,default=0)
-        ei = qcutils.GetDateIndex(dt,end_date,ts=ts,default=len(dt)-1)
+        si = pfp_utils.GetDateIndex(dt,start_date,ts=ts,default=0)
+        ei = pfp_utils.GetDateIndex(dt,end_date,ts=ts,default=len(dt)-1)
         nDays = int((ei-si+1)/nperDay+0.5)
         annual_dict["variables"]["nDays"]["data"][i] = nDays
         for item in series_list:
             if item not in ds.series.keys(): continue
-            variable = qcutils.GetVariable(ds, item, start=si, end=ei)
+            variable = pfp_utils.GetVariable(ds, item, start=si, end=ei)
             if item in series_dict["lists"]["co2"]:
-                variable = qcutils.convert_units_func(ds, variable, "gC/m2")
+                variable = pfp_utils.convert_units_func(ds, variable, "gC/m2")
                 annual_dict["variables"][item]["attr"]["units"] = "gC/m2"
             else:
                 annual_dict["variables"][item]["attr"]["units"] = variable["Attr"]["units"]
@@ -1618,8 +1654,8 @@ def L6_summary_cumulative(ds, series_dict):
     logger.info(" Doing the cumulative summaries at L6")
     dt = ds.series["DateTime"]["Data"]
     ts = int(ds.globalattributes["time_step"])
-    si = qcutils.GetDateIndex(dt, str(dt[0]), ts=ts, default=0, match="startnextday")
-    ei = qcutils.GetDateIndex(dt, str(dt[-1]), ts=ts, default=len(dt)-1, match="endpreviousday")
+    si = pfp_utils.GetDateIndex(dt, str(dt[0]), ts=ts, default=0, match="startnextday")
+    ei = pfp_utils.GetDateIndex(dt, str(dt[-1]), ts=ts, default=len(dt)-1, match="endpreviousday")
     ldt = dt[si:ei+1]
     start_year = ldt[0].year
     end_year = ldt[-1].year
@@ -1635,17 +1671,17 @@ def L6_summary_cumulative(ds, series_dict):
         elif ts==60:
             start_date = str(year)+"-01-01 01:00"
         end_date = str(year+1)+"-01-01 00:00"
-        si = qcutils.GetDateIndex(dt, start_date, ts=ts, default=0)
-        ei = qcutils.GetDateIndex(dt, end_date, ts=ts, default=len(dt)-1)
+        si = pfp_utils.GetDateIndex(dt, start_date, ts=ts, default=0)
+        ei = pfp_utils.GetDateIndex(dt, end_date, ts=ts, default=len(dt)-1)
         ldt = dt[si:ei+1]
         f0 = numpy.zeros(len(ldt), dtype=numpy.int32)
         cdyr["variables"]["DateTime"] = {"data":ldt,"flag":f0,
                                          "attr":{"units":"Year","format":"dd/mm/yyyy HH:MM"}}
         for item in series_list:
             cdyr["variables"][item] = {"data":[],"attr":{}}
-            variable = qcutils.GetVariable(ds, item, start=si, end=ei)
+            variable = pfp_utils.GetVariable(ds, item, start=si, end=ei)
             if item in series_dict["lists"]["co2"]:
-                variable = qcutils.convert_units_func(ds, variable, "gC/m2")
+                variable = pfp_utils.convert_units_func(ds, variable, "gC/m2")
                 cdyr["variables"][item]["attr"]["units"] = "gC/m2"
             else:
                 cdyr["variables"][item]["attr"]["units"] = variable["Attr"]["units"]
@@ -1672,22 +1708,22 @@ def ParseL6ControlFile(cf,ds):
                 # create the SOLO dictionary in ds
                 if "solo" not in l6_info["er"]:
                     l6_info["er"]["solo"] = {}
-                l6_info["er"]["solo"][ThisOne] = qcrpNN.rpSOLO_createdict(cf,ds,ThisOne)
+                l6_info["er"]["solo"][ThisOne] = pfp_rpNN.rpSOLO_createdict(cf,ds,ThisOne)
             if "ERUsingFFNET" in cf["ER"][ThisOne].keys():
                 # create the FFNET dictionary in ds
                 if "ffnet" not in l6_info["er"]:
                     l6_info["er"]["ffnet"] = {}
-                l6_info["er"]["ffnet"][ThisOne] = qcrpNN.rpFFNET_createdict(cf,ds,ThisOne)
+                l6_info["er"]["ffnet"][ThisOne] = pfp_rpNN.rpFFNET_createdict(cf,ds,ThisOne)
             if "ERUsingLloydTaylor" in cf["ER"][ThisOne].keys():
                 # create the Lloyd-Taylor dictionary in ds
                 if "rpLT" not in l6_info["er"]:
                     l6_info["er"]["rpLT"] = {}
-                l6_info["er"]["rpLT"][ThisOne] = qcrpLT.rpLT_createdict(cf,ds,ThisOne)
+                l6_info["er"]["rpLT"][ThisOne] = pfp_rpLT.rpLT_createdict(cf,ds,ThisOne)
             if "ERUsingLasslop" in cf["ER"][ThisOne].keys():
                 # create the Lasslop dictionary in ds
                 if "rpLL" not in l6_info["er"]:
                     l6_info["er"]["rpLL"] = {}
-                l6_info["er"]["rpLL"][ThisOne] = qcrpLL.rpLL_createdict(cf,ds,ThisOne)
+                l6_info["er"]["rpLL"][ThisOne] = pfp_rpLL.rpLL_createdict(cf,ds,ThisOne)
     if "NEE" in cf.keys():
         for ThisOne in cf["NEE"].keys():
             if "nee" not in l6_info: l6_info["nee"] = {}
@@ -1704,7 +1740,7 @@ def PartitionNEE(cf, ds, info):
      Partition NEE into GPP and ER.
      Input and output names are held in info['gpp'].
     Usage:
-     qcrp.PartitionNEE(cf, ds, info)
+     pfp_rp.PartitionNEE(cf, ds, info)
       where cf is a conbtrol file object
             ds is a data structure
     Side effects:
@@ -1714,12 +1750,12 @@ def PartitionNEE(cf, ds, info):
     """
     if "gpp" not in info: return
     # get the Fsd threshold
-    opt = qcutils.get_keyvaluefromcf(cf,["Options"],"Fsd_threshold",default=10)
+    opt = pfp_utils.get_keyvaluefromcf(cf,["Options"],"Fsd_threshold",default=10)
     Fsd_threshold = float(opt)
     # get the incoming shortwave radiation
-    Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
+    Fsd,Fsd_flag,Fsd_attr = pfp_utils.GetSeriesasMA(ds,"Fsd")
     if "Fsd_syn" in ds.series.keys():
-        Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
+        Fsd_syn,flag,attr = pfp_utils.GetSeriesasMA(ds,"Fsd_syn")
         index = numpy.where(numpy.ma.getmaskarray(Fsd)==True)[0]
         #index = numpy.ma.where(numpy.ma.getmaskarray(Fsd)==True)[0]
         Fsd[index] = Fsd_syn[index]
@@ -1729,8 +1765,8 @@ def PartitionNEE(cf, ds, info):
         NEE_label = info["gpp"][label]["NEE"]
         ER_label = info["gpp"][label]["ER"]
         output_label = info["gpp"][label]["output"]
-        NEE,NEE_flag,NEE_attr = qcutils.GetSeriesasMA(ds,NEE_label)
-        ER,ER_flag,ER_attr = qcutils.GetSeriesasMA(ds,ER_label)
+        NEE,NEE_flag,NEE_attr = pfp_utils.GetSeriesasMA(ds,NEE_label)
+        ER,ER_flag,ER_attr = pfp_utils.GetSeriesasMA(ds,ER_label)
         # calculate GPP
         # here we use the conventions from Chapin et al (2006)
         #  NEP = -1*NEE
@@ -1769,8 +1805,8 @@ def rpGPP_createdict(cf,ds,series):
         gpp_info["ER"] = cf["GPP"][series]["ER"]
     # create an empty series in ds if the output series doesn't exist yet
     if gpp_info["output"] not in ds.series.keys():
-        data,flag,attr = qcutils.MakeEmptySeries(ds,gpp_info["output"])
-        qcutils.CreateSeries(ds,gpp_info["output"],data,flag,attr)
+        data,flag,attr = pfp_utils.MakeEmptySeries(ds,gpp_info["output"])
+        pfp_utils.CreateSeries(ds,gpp_info["output"],data,flag,attr)
     return gpp_info
 
 def rpNEE_createdict(cf, ds, series):
@@ -1787,8 +1823,8 @@ def rpNEE_createdict(cf, ds, series):
         nee_info["ER"] = cf["NEE"][series]["ER"]
     # create an empty series in ds if the output series doesn't exist yet
     if nee_info["output"] not in ds.series.keys():
-        data,flag,attr = qcutils.MakeEmptySeries(ds,nee_info["output"])
-        qcutils.CreateSeries(ds,nee_info["output"],data,flag,attr)
+        data,flag,attr = pfp_utils.MakeEmptySeries(ds,nee_info["output"])
+        pfp_utils.CreateSeries(ds,nee_info["output"],data,flag,attr)
     return nee_info
 
 def rpMerge_createdict(cf,ds,series):
@@ -1796,7 +1832,7 @@ def rpMerge_createdict(cf,ds,series):
         and tower data."""
     merge_prereq_list = []
     # get the section of the control file containing the series
-    section = qcutils.get_cfsection(cf,series=series,mode="quiet")
+    section = pfp_utils.get_cfsection(cf,series=series,mode="quiet")
     # create the ffnet directory in the data structure
     if "merge" not in dir(ds): ds.merge = {}
     # check to see if this series is in the "merge first" list
@@ -1813,5 +1849,5 @@ def rpMerge_createdict(cf,ds,series):
     ds.merge[merge_order][series]["source"] = ast.literal_eval(cf[section][series]["MergeSeries"]["Source"])
     # create an empty series in ds if the output series doesn't exist yet
     if ds.merge[merge_order][series]["output"] not in ds.series.keys():
-        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.merge[merge_order][series]["output"])
-        qcutils.CreateSeries(ds,ds.merge[merge_order][series]["output"],data,flag,attr)
+        data,flag,attr = pfp_utils.MakeEmptySeries(ds,ds.merge[merge_order][series]["output"])
+        pfp_utils.CreateSeries(ds,ds.merge[merge_order][series]["output"],data,flag,attr)

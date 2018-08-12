@@ -10,8 +10,8 @@ import os
 import platform
 import subprocess
 import Tkinter
-import qcio
-import qcutils
+import pfp_io
+import pfp_utils
 
 # lets see if ffnet is installed
 try:
@@ -279,7 +279,7 @@ def rpFFNET_createdict(cf,ds,series):
     """ Creates a dictionary in ds to hold information about the FFNET data used
         to gap fill the tower data."""
     # get the section of the control file containing the series
-    section = qcutils.get_cfsection(cf,series=series,mode="quiet")
+    section = pfp_utils.get_cfsection(cf,series=series,mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
         logger.error("ERUsingFFNET: Series "+series+" not found in control file, skipping ...")
@@ -288,7 +288,7 @@ def rpFFNET_createdict(cf,ds,series):
     driver_list = ast.literal_eval(cf[section][series]["ERUsingFFNET"]["drivers"])
     target = cf[section][series]["ERUsingFFNET"]["target"]
     for label in driver_list:
-        data,flag,attr = qcutils.GetSeriesasMA(ds,label)
+        data,flag,attr = pfp_utils.GetSeriesasMA(ds,label)
         if numpy.ma.count_masked(data)!=0:
             logger.error("ERUsingFFNET: driver "+label+" contains missing data, skipping target "+target)
             return
@@ -297,7 +297,7 @@ def rpFFNET_createdict(cf,ds,series):
     # site name
     ffnet_info["site_name"] = ds.globalattributes["site_name"]
     # source series for ER
-    opt = qcutils.get_keyvaluefromcf(cf, [section,series,"ERUsingFFNET"], "source", default="Fc")
+    opt = pfp_utils.get_keyvaluefromcf(cf, [section,series,"ERUsingFFNET"], "source", default="Fc")
     ffnet_info["source"] = opt
     # target series name
     ffnet_info["target"] = cf[section][series]["ERUsingFFNET"]["target"]
@@ -313,8 +313,8 @@ def rpFFNET_createdict(cf,ds,series):
                              "m_ols":[],"b_ols":[]}
     # create an empty series in ds if the SOLO output series doesn't exist yet
     if ffnet_info["output"] not in ds.series.keys():
-        data,flag,attr = qcutils.MakeEmptySeries(ds,ffnet_info["output"])
-        qcutils.CreateSeries(ds,ffnet_info["output"],data,flag,attr)
+        data,flag,attr = pfp_utils.MakeEmptySeries(ds,ffnet_info["output"])
+        pfp_utils.CreateSeries(ds,ffnet_info["output"],data,flag,attr)
     # create the merge directory in the data structure
     if "merge" not in dir(ds): ds.merge = {}
     if "standard" not in ds.merge.keys(): ds.merge["standard"] = {}
@@ -326,8 +326,8 @@ def rpFFNET_createdict(cf,ds,series):
     ds.merge["standard"][series]["source"] = ast.literal_eval(cf[section][series]["MergeSeries"]["Source"])
     # create an empty series in ds if the output series doesn't exist yet
     if ds.merge["standard"][series]["output"] not in ds.series.keys():
-        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.merge["standard"][series]["output"])
-        qcutils.CreateSeries(ds,ds.merge["standard"][series]["output"],data,flag,attr)
+        data,flag,attr = pfp_utils.MakeEmptySeries(ds,ds.merge["standard"][series]["output"])
+        pfp_utils.CreateSeries(ds,ds.merge["standard"][series]["output"],data,flag,attr)
     return ffnet_info
 
 def rpFFNET_done(ds,FFNET_gui,rpFFNET_info):
@@ -357,10 +357,10 @@ def rpFFNET_main(ds, rpFFNET_info,FFNET_gui=None):
     # read the control file again, this allows the contents of the control file to
     # be changed with the FFNET GUI still displayed
     cfname = ds.globalattributes["controlfile_name"]
-    cf = qcio.get_controlfilecontents(cfname,mode="quiet")
+    cf = pfp_io.get_controlfilecontents(cfname,mode="quiet")
     ffnet_series = rpFFNET_info["er"].keys()
     for series in ffnet_series:
-        section = qcutils.get_cfsection(cf,series=series,mode="quiet")
+        section = pfp_utils.get_cfsection(cf,series=series,mode="quiet")
         if len(section)==0: continue
         if series not in ds.series.keys(): continue
         rpFFNET_info["er"][series]["target"] = cf[section][series]["ERUsingFFNET"]["target"]
@@ -373,8 +373,8 @@ def rpFFNET_main(ds, rpFFNET_info,FFNET_gui=None):
     ldt = ds.series["DateTime"]["Data"]
     xldt = ds.series["xlDateTime"]["Data"]
     # get the start and end datetime indices
-    si = qcutils.GetDateIndex(ldt,startdate,ts=ts,default=0,match="exact")
-    ei = qcutils.GetDateIndex(ldt,enddate,ts=ts,default=-1,match="exact")
+    si = pfp_utils.GetDateIndex(ldt,startdate,ts=ts,default=0,match="exact")
+    ei = pfp_utils.GetDateIndex(ldt,enddate,ts=ts,default=-1,match="exact")
     # check the start and end indices
     if si >= ei:
         logger.error(" ERUsingFFNET: end datetime index ("+str(ei)+") smaller that start ("+str(si)+")")
@@ -398,7 +398,7 @@ def rpFFNET_main(ds, rpFFNET_info,FFNET_gui=None):
         rpFFNET_info["er"][series]["results"]["startdate"].append(xldt[si])
         rpFFNET_info["er"][series]["results"]["enddate"].append(xldt[ei])
         target = rpFFNET_info["er"][series]["target"]
-        d,f,a = qcutils.GetSeriesasMA(ds,target,si=si,ei=ei)
+        d,f,a = pfp_utils.GetSeriesasMA(ds,target,si=si,ei=ei)
         if numpy.ma.count(d)<rpFFNET_info["min_points"]:
             logger.error("rpFFNET: Less than "+str(rpFFNET_info["min_points"])+" points available for series "+series+" ...")
             rpFFNET_info["er"][series]["results"]["No. points"].append(float(0))
@@ -412,16 +412,16 @@ def rpFFNET_main(ds, rpFFNET_info,FFNET_gui=None):
         ndrivers = len(drivers)
         output = rpFFNET_info["er"][series]["output"]
         # prepare the input and target data for training
-        ER,f,a = qcutils.GetSeriesasMA(ds,target,si=si,ei=ei)
+        ER,f,a = pfp_utils.GetSeriesasMA(ds,target,si=si,ei=ei)
         mask = numpy.ma.getmask(ER)
         for val in drivers:
-            d,f,a = qcutils.GetSeriesasMA(ds,val,si=si,ei=ei)
+            d,f,a = pfp_utils.GetSeriesasMA(ds,val,si=si,ei=ei)
             mask = numpy.ma.mask_or(mask,d.mask)
         ER.mask = mask
         nRecs = numpy.ma.count(ER)
         data_nm = numpy.empty((nRecs,len(drivers)+1))
         for idx,val in enumerate(drivers):
-            d,f,a = qcutils.GetSeriesasMA(ds,val,si=si,ei=ei)
+            d,f,a = pfp_utils.GetSeriesasMA(ds,val,si=si,ei=ei)
             d.mask = mask
             data_nm[:,idx] = numpy.ma.compressed(d)
         data_nm[:,idx+1] = numpy.ma.compressed(ER)
@@ -466,7 +466,7 @@ def rpFFNET_main(ds, rpFFNET_info,FFNET_gui=None):
         # get the predictions
         input_predict = numpy.empty((len(ER),len(drivers)))
         for idx,val in enumerate(drivers):
-            d,f,a = qcutils.GetSeries(ds,val,si=si,ei=ei)
+            d,f,a = pfp_utils.GetSeries(ds,val,si=si,ei=ei)
             input_predict[:,idx] = d[:]
         output_predict = net.call(input_predict)
         if ei==-1:
@@ -497,10 +497,10 @@ def rpFFNET_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpFFNET_info,si
     # get a local copy of the datetime series
     dt = ds.series['DateTime']['Data'][si:ei+1]
     xdt = numpy.array(dt)
-    Hdh,f,a = qcutils.GetSeriesasMA(ds,'Hdh',si=si,ei=ei)
+    Hdh,f,a = pfp_utils.GetSeriesasMA(ds,'Hdh',si=si,ei=ei)
     # get the observed and modelled values
-    obs,f,a = qcutils.GetSeriesasMA(ds,targetlabel,si=si,ei=ei)
-    mod,f,a = qcutils.GetSeriesasMA(ds,outputlabel,si=si,ei=ei)
+    obs,f,a = pfp_utils.GetSeriesasMA(ds,targetlabel,si=si,ei=ei)
+    mod,f,a = pfp_utils.GetSeriesasMA(ds,outputlabel,si=si,ei=ei)
     # make the figure
     if rpFFNET_info["show_plots"]:
         plt.ion()
@@ -564,16 +564,16 @@ def rpFFNET_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpFFNET_info,si
     plt.figtext(0.815,0.225,'No. filled')
     plt.figtext(0.915,0.225,str(numfilled))
     plt.figtext(0.815,0.200,'Slope')
-    plt.figtext(0.915,0.200,str(qcutils.round2sig(coefs[0],sig=4)))
+    plt.figtext(0.915,0.200,str(pfp_utils.round2sig(coefs[0],sig=4)))
     rpFFNET_info["er"][series]["results"]["m_ols"].append(coefs[0])
     plt.figtext(0.815,0.175,'Offset')
-    plt.figtext(0.915,0.175,str(qcutils.round2sig(coefs[1],sig=4)))
+    plt.figtext(0.915,0.175,str(pfp_utils.round2sig(coefs[1],sig=4)))
     rpFFNET_info["er"][series]["results"]["b_ols"].append(coefs[1])
     plt.figtext(0.815,0.150,'r')
-    plt.figtext(0.915,0.150,str(qcutils.round2sig(r[0][1],sig=4)))
+    plt.figtext(0.915,0.150,str(pfp_utils.round2sig(r[0][1],sig=4)))
     rpFFNET_info["er"][series]["results"]["r"].append(r[0][1])
     plt.figtext(0.815,0.125,'RMSE')
-    plt.figtext(0.915,0.125,str(qcutils.round2sig(rmse,sig=4)))
+    plt.figtext(0.915,0.125,str(pfp_utils.round2sig(rmse,sig=4)))
     rpFFNET_info["er"][series]["results"]["RMSE"].append(rmse)
     var_obs = numpy.ma.var(obs)
     rpFFNET_info["er"][series]["results"]["Var (obs)"].append(var_obs)
@@ -599,7 +599,7 @@ def rpFFNET_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpFFNET_info,si
         this_bottom = pd["ts_bottom"] + i*pd["ts_height"]
         rect = [pd["margin_left"],this_bottom,pd["ts_width"],pd["ts_height"]]
         ts_axes.append(plt.axes(rect,sharex=ts_axes[0]))
-        data,flag,attr = qcutils.GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
+        data,flag,attr = pfp_utils.GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
         data_notgf = numpy.ma.masked_where(flag!=0,data)
         data_gf = numpy.ma.masked_where(flag==0,data)
         ts_axes[i].plot(xdt,data_notgf,'b-')
@@ -743,50 +743,50 @@ def rpFFNET_run_gui(ds,FFNET_gui,rpFFNET_info):
 def rpFFNET_run_nogui(cf,ds,rpFFNET_info):
     # populate the rpFFNET_info dictionary with things that will be useful
     dt = ds.series["DateTime"]["Data"]
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","FFNET"],"period_option",default="manual")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","FFNET"],"period_option",default="manual")
     if opt=="manual":
         rpFFNET_info["peropt"] = 1
-        sd = qcutils.get_keyvaluefromcf(cf,["GUI","FFNET"],"start_date",default="")
+        sd = pfp_utils.get_keyvaluefromcf(cf,["GUI","FFNET"],"start_date",default="")
         rpFFNET_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: rpFFNET_info["startdate"] = sd
-        ed = qcutils.get_keyvaluefromcf(cf,["GUI","FFNET"],"end_date",default="")
+        ed = pfp_utils.get_keyvaluefromcf(cf,["GUI","FFNET"],"end_date",default="")
         rpFFNET_info["enddate"] = dt[-1].strftime("%Y-%m-%d %H:%M")
         if len(ed)!=0: rpFFNET_info["enddate"] = ed
     elif opt=="monthly":
         rpFFNET_info["peropt"] = 2
-        sd = qcutils.get_keyvaluefromcf(cf,["GUI","FFNET"],"start_date",default="")
+        sd = pfp_utils.get_keyvaluefromcf(cf,["GUI","FFNET"],"start_date",default="")
         rpFFNET_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: rpFFNET_info["startdate"] = sd
     elif opt=="days":
         rpFFNET_info["peropt"] = 3
-        sd = qcutils.get_keyvaluefromcf(cf,["GUI","FFNET"],"start_date",default="")
+        sd = pfp_utils.get_keyvaluefromcf(cf,["GUI","FFNET"],"start_date",default="")
         rpFFNET_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: rpFFNET_info["startdate"] = sd
-        ed = qcutils.get_keyvaluefromcf(cf,["GUI","FFNET"],"end_date",default="")
+        ed = pfp_utils.get_keyvaluefromcf(cf,["GUI","FFNET"],"end_date",default="")
         rpFFNET_info["enddate"] = dt[-1].strftime("%Y-%m-%d %H:%M")
         if len(ed)!=0: rpFFNET_info["enddate"] = ed
     elif opt=="yearly":
         rpFFNET_info["peropt"] = 4
-        sd = qcutils.get_keyvaluefromcf(cf,["GUI","FFNET"],"start_date",default="")
+        sd = pfp_utils.get_keyvaluefromcf(cf,["GUI","FFNET"],"start_date",default="")
         rpFFNET_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: rpFFNET_info["startdate"] = sd
     # number of hidden layers
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","FFNET"],"hidden_nodes",default="6,4")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","FFNET"],"hidden_nodes",default="6,4")
     rpFFNET_info["hidden"] = str(opt)
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","FFNET"],"training",default=500)
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","FFNET"],"training",default=500)
     rpFFNET_info["training"] = int(opt)
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","FFNET"],"training_type",default="rprop")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","FFNET"],"training_type",default="rprop")
     rpFFNET_info["training_type"] = str(opt)
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","FFNET"],"connection",default="full")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","FFNET"],"connection",default="full")
     rpFFNET_info["connection"] = str(opt)
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","FFNET"],"min_percent",default=10)
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","FFNET"],"min_percent",default=10)
     rpFFNET_info["min_percent"] = int(opt)
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","FFNET"],"number_days",default=90)
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","FFNET"],"number_days",default=90)
     rpFFNET_info["number_days"] = int(opt)
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","FFNET"],"number_months",default=6)
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","FFNET"],"number_months",default=6)
     rpFFNET_info["number_months"] = int(opt)
     rpFFNET_info["show_plots"] = True
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","FFNET"],"show_plots",default="yes")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","FFNET"],"show_plots",default="yes")
     if opt.lower()=="no": rpFFNET_info["show_plots"] = False
 
     rpFFNET_info["site_name"] = ds.globalattributes["site_name"]
@@ -850,7 +850,7 @@ def rpSOLO_createdict(cf,ds,series):
     """ Creates a dictionary in ds to hold information about the SOLO data used
         to gap fill the tower data."""
     # get the section of the control file containing the series
-    section = qcutils.get_cfsection(cf,series=series,mode="quiet")
+    section = pfp_utils.get_cfsection(cf,series=series,mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
         logger.error("ERUsingSOLO: Series "+series+" not found in control file, skipping ...")
@@ -859,7 +859,7 @@ def rpSOLO_createdict(cf,ds,series):
     driver_list = ast.literal_eval(cf[section][series]["ERUsingSOLO"]["drivers"])
     target = cf[section][series]["ERUsingSOLO"]["target"]
     for label in driver_list:
-        data,flag,attr = qcutils.GetSeriesasMA(ds,label)
+        data,flag,attr = pfp_utils.GetSeriesasMA(ds,label)
         if numpy.ma.count_masked(data)!=0:
             logger.error("ERUsingSOLO: driver "+label+" contains missing data, skipping target "+target)
             return
@@ -868,7 +868,7 @@ def rpSOLO_createdict(cf,ds,series):
     # site name
     solo_info["site_name"] = ds.globalattributes["site_name"]
     # source series for ER
-    opt = qcutils.get_keyvaluefromcf(cf, [section,series,"ERUsingSOLO"], "source", default="Fc")
+    opt = pfp_utils.get_keyvaluefromcf(cf, [section,series,"ERUsingSOLO"], "source", default="Fc")
     solo_info["source"] = opt
     # target series name
     solo_info["target"] = cf[section][series]["ERUsingSOLO"]["target"]
@@ -884,8 +884,8 @@ def rpSOLO_createdict(cf,ds,series):
                             "m_ols":[],"b_ols":[]}
     # create an empty series in ds if the SOLO output series doesn't exist yet
     if solo_info["output"] not in ds.series.keys():
-        data,flag,attr = qcutils.MakeEmptySeries(ds,solo_info["output"])
-        qcutils.CreateSeries(ds,solo_info["output"],data,flag,attr)
+        data,flag,attr = pfp_utils.MakeEmptySeries(ds,solo_info["output"])
+        pfp_utils.CreateSeries(ds,solo_info["output"],data,flag,attr)
     # create the merge directory in the data structure
     if "merge" not in dir(ds): ds.merge = {}
     if "standard" not in ds.merge.keys(): ds.merge["standard"] = {}
@@ -897,8 +897,8 @@ def rpSOLO_createdict(cf,ds,series):
     ds.merge["standard"][series]["source"] = ast.literal_eval(cf[section][series]["MergeSeries"]["Source"])
     # create an empty series in ds if the output series doesn't exist yet
     if ds.merge["standard"][series]["output"] not in ds.series.keys():
-        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.merge["standard"][series]["output"])
-        qcutils.CreateSeries(ds,ds.merge["standard"][series]["output"],data,flag,attr)
+        data,flag,attr = pfp_utils.MakeEmptySeries(ds,ds.merge["standard"][series]["output"])
+        pfp_utils.CreateSeries(ds,ds.merge["standard"][series]["output"],data,flag,attr)
     return solo_info
 
 def rpSOLO_done(ds,SOLO_gui,solo_info):
@@ -928,10 +928,10 @@ def rpSOLO_main(ds,solo_info,SOLO_gui=None):
     # read the control file again, this allows the contents of the control file to
     # be changed with the SOLO GUI still displayed
     cfname = ds.globalattributes["controlfile_name"]
-    cf = qcio.get_controlfilecontents(cfname,mode="quiet")
+    cf = pfp_io.get_controlfilecontents(cfname,mode="quiet")
     solo_series = solo_info["er"].keys()
     for series in solo_series:
-        section = qcutils.get_cfsection(cf,series=series,mode="quiet")
+        section = pfp_utils.get_cfsection(cf,series=series,mode="quiet")
         if len(section)==0: continue
         if series not in ds.series.keys(): continue
         solo_info["er"][series]["target"] = cf[section][series]["ERUsingSOLO"]["target"]
@@ -944,8 +944,8 @@ def rpSOLO_main(ds,solo_info,SOLO_gui=None):
     ldt = ds.series["DateTime"]["Data"]
     xldt = ds.series["xlDateTime"]["Data"]
     # get the start and end datetime indices
-    si = qcutils.GetDateIndex(ldt,startdate,ts=ts,default=0,match="exact")
-    ei = qcutils.GetDateIndex(ldt,enddate,ts=ts,default=-1,match="exact")
+    si = pfp_utils.GetDateIndex(ldt,startdate,ts=ts,default=0,match="exact")
+    ei = pfp_utils.GetDateIndex(ldt,enddate,ts=ts,default=-1,match="exact")
     # check the start and end indices
     if si >= ei:
         logger.error(" ERUsingSOLO: end datetime index ("+str(ei)+") smaller that start ("+str(si)+")")
@@ -969,7 +969,7 @@ def rpSOLO_main(ds,solo_info,SOLO_gui=None):
         solo_info["er"][series]["results"]["startdate"].append(xldt[si])
         solo_info["er"][series]["results"]["enddate"].append(xldt[ei])
         target = solo_info["er"][series]["target"]
-        d,f,a = qcutils.GetSeriesasMA(ds,target,si=si,ei=ei)
+        d,f,a = pfp_utils.GetSeriesasMA(ds,target,si=si,ei=ei)
         if numpy.ma.count(d)<solo_info["min_points"]:
             logger.error("rpSOLO: Less than "+str(solo_info["min_points"])+" points available for series "+target+" ...")
             solo_info["er"][series]["results"]["No. points"].append(float(0))
@@ -1016,10 +1016,10 @@ def rpSOLO_plot(pd,ds,series,driverlist,targetlabel,outputlabel,solo_info,si=0,e
     # get a local copy of the datetime series
     dt = ds.series['DateTime']['Data'][si:ei+1]
     xdt = numpy.array(dt)
-    Hdh,f,a = qcutils.GetSeriesasMA(ds,'Hdh',si=si,ei=ei)
+    Hdh,f,a = pfp_utils.GetSeriesasMA(ds,'Hdh',si=si,ei=ei)
     # get the observed and modelled values
-    obs,f,a = qcutils.GetSeriesasMA(ds,targetlabel,si=si,ei=ei)
-    mod,f,a = qcutils.GetSeriesasMA(ds,outputlabel,si=si,ei=ei)
+    obs,f,a = pfp_utils.GetSeriesasMA(ds,targetlabel,si=si,ei=ei)
+    mod,f,a = pfp_utils.GetSeriesasMA(ds,outputlabel,si=si,ei=ei)
     # make the figure
     if solo_info["show_plots"]:
         plt.ion()
@@ -1085,16 +1085,16 @@ def rpSOLO_plot(pd,ds,series,driverlist,targetlabel,outputlabel,solo_info,si=0,e
     plt.figtext(0.815,0.225,'No. filled')
     plt.figtext(0.915,0.225,str(numfilled))
     plt.figtext(0.815,0.200,'Slope')
-    plt.figtext(0.915,0.200,str(qcutils.round2sig(coefs[0],sig=4)))
+    plt.figtext(0.915,0.200,str(pfp_utils.round2sig(coefs[0],sig=4)))
     solo_info["er"][series]["results"]["m_ols"].append(coefs[0])
     plt.figtext(0.815,0.175,'Offset')
-    plt.figtext(0.915,0.175,str(qcutils.round2sig(coefs[1],sig=4)))
+    plt.figtext(0.915,0.175,str(pfp_utils.round2sig(coefs[1],sig=4)))
     solo_info["er"][series]["results"]["b_ols"].append(coefs[1])
     plt.figtext(0.815,0.150,'r')
-    plt.figtext(0.915,0.150,str(qcutils.round2sig(r[0][1],sig=4)))
+    plt.figtext(0.915,0.150,str(pfp_utils.round2sig(r[0][1],sig=4)))
     solo_info["er"][series]["results"]["r"].append(r[0][1])
     plt.figtext(0.815,0.125,'RMSE')
-    plt.figtext(0.915,0.125,str(qcutils.round2sig(rmse,sig=4)))
+    plt.figtext(0.915,0.125,str(pfp_utils.round2sig(rmse,sig=4)))
     solo_info["er"][series]["results"]["RMSE"].append(rmse)
     var_obs = numpy.ma.var(obs)
     solo_info["er"][series]["results"]["Var (obs)"].append(var_obs)
@@ -1120,7 +1120,7 @@ def rpSOLO_plot(pd,ds,series,driverlist,targetlabel,outputlabel,solo_info,si=0,e
         this_bottom = pd["ts_bottom"] + i*pd["ts_height"]
         rect = [pd["margin_left"],this_bottom,pd["ts_width"],pd["ts_height"]]
         ts_axes.append(plt.axes(rect,sharex=ts_axes[0]))
-        data,flag,attr = qcutils.GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
+        data,flag,attr = pfp_utils.GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
         data_notgf = numpy.ma.masked_where(flag!=0,data)
         data_gf = numpy.ma.masked_where(flag==0,data)
         ts_axes[i].plot(xdt,data_notgf,'b-')
@@ -1263,65 +1263,65 @@ def rpSOLO_run_nogui(cf,ds,solo_info):
     # populate the solo_info dictionary with things that will be useful
     # period option
     dt = ds.series["DateTime"]["Data"]
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"period_option",default="manual")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"period_option",default="manual")
     if opt=="manual":
         solo_info["peropt"] = 1
-        sd = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="")
+        sd = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="")
         solo_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: solo_info["startdate"] = sd
-        ed = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"end_date",default="")
+        ed = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"end_date",default="")
         solo_info["enddate"] = dt[-1].strftime("%Y-%m-%d %H:%M")
         if len(ed)!=0: solo_info["enddate"] = ed
     elif opt=="monthly":
         solo_info["peropt"] = 2
-        sd = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="")
+        sd = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="")
         solo_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: solo_info["startdate"] = sd
     elif opt=="days":
         solo_info["peropt"] = 3
-        sd = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="")
+        sd = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="")
         solo_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: solo_info["startdate"] = sd
-        ed = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"end_date",default="")
+        ed = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"end_date",default="")
         solo_info["enddate"] = dt[-1].strftime("%Y-%m-%d %H:%M")
         if len(ed)!=0: solo_info["enddate"] = ed
     elif opt=="yearly":
         solo_info["peropt"] = 4
-        sd = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="")
+        sd = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="")
         solo_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: solo_info["startdate"] = sd
     # overwrite option
     solo_info["overwrite"] = False
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"overwrite",default="no")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"overwrite",default="no")
     if opt.lower()=="yes": solo_info["overwrite"] = True
     # show plots option
     solo_info["show_plots"] = True
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"show_plots",default="yes")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"show_plots",default="yes")
     if opt.lower()=="no": solo_info["show_plots"] = False
     # auto-complete option
     solo_info["auto_complete"] = True
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"auto_complete",default="yes")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"auto_complete",default="yes")
     if opt.lower()=="no": alternate_info["auto_complete"] = False
     # minimum percentage of good points required
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"min_percent",default=50)
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"min_percent",default=50)
     solo_info["min_percent"] = int(opt)
     # number of days
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"number_days",default=90)
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"number_days",default=90)
     solo_info["number_days"] = int(opt)
     # nodes for SOFM/SOLO network
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"nodes",default="auto")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"nodes",default="auto")
     solo_info["nodes"] = str(opt)
     # training iterations
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"training",default="500")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"training",default="500")
     solo_info["training"] = str(opt)
     # nda factor
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"nda_factor",default="5")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"nda_factor",default="5")
     solo_info["nda_factor"] = str(opt)
     # learning rate
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"learning",default="0.01")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"learning",default="0.01")
     solo_info["learningrate"] = str(opt)
     # learning iterations
-    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"iterations",default="500")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["GUI","SOLO"],"iterations",default="500")
     solo_info["iterations"] = str(opt)
     # now set up the rest of the solo_info dictionary
     solo_info["site_name"] = ds.globalattributes["site_name"]
@@ -1402,11 +1402,11 @@ def rpSOLO_runseqsolo(ds,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-1):
     # now fill the driver data array
     i = 0
     for TheseOnes in driverlist:
-        driver,flag,attr = qcutils.GetSeries(ds,TheseOnes,si=si,ei=ei)
+        driver,flag,attr = pfp_utils.GetSeries(ds,TheseOnes,si=si,ei=ei)
         seqsoloinputdata[:,i] = driver[:]
         i = i + 1
     # a clean copy of the target is pulled from the unmodified ds each time
-    target,flag,attr = qcutils.GetSeries(ds,targetlabel,si=si,ei=ei)
+    target,flag,attr = pfp_utils.GetSeries(ds,targetlabel,si=si,ei=ei)
     # now load the target data into the data array
     seqsoloinputdata[:,ndrivers] = target[:]
     # now strip out the bad data
@@ -1475,7 +1475,7 @@ def rpSOLO_runsofm(ds,SOLO_gui,driverlist,targetlabel,nRecs,si=0,ei=-1):
     i = 0
     badlines = []
     for TheseOnes in driverlist:
-        driver,flag,attr = qcutils.GetSeries(ds,TheseOnes,si=si,ei=ei)
+        driver,flag,attr = pfp_utils.GetSeries(ds,TheseOnes,si=si,ei=ei)
         index = numpy.where(abs(driver-float(c.missing_value))<c.eps)[0]
         if len(index)!=0:
             logger.error(' SOLO_runsofm: c.missing_value found in driver '+TheseOnes+' at lines '+str(index))
@@ -1520,11 +1520,11 @@ def rpSOLO_runsolo(ds,driverlist,targetlabel,nRecs,si=0,ei=-1):
     # now fill the driver data array, drivers come from the modified ds
     i = 0
     for TheseOnes in driverlist:
-        driver,flag,attr = qcutils.GetSeries(ds,TheseOnes,si=si,ei=ei)
+        driver,flag,attr = pfp_utils.GetSeries(ds,TheseOnes,si=si,ei=ei)
         soloinputdata[:,i] = driver[:]
         i = i + 1
     # a clean copy of the target is pulled from the ds each time
-    target,flag,attr = qcutils.GetSeries(ds,targetlabel,si=si,ei=ei)
+    target,flag,attr = pfp_utils.GetSeries(ds,targetlabel,si=si,ei=ei)
     # now load the target data into the data array
     soloinputdata[:,ndrivers] = target[:]
     # now strip out the bad data

@@ -8,11 +8,12 @@ import matplotlib.pyplot as plt
 import meteorologicalfunctions as mf
 import numpy
 import os
+from scipy.interpolate import Akima1DInterpolator
 import statsmodels.api as sm
 import sys
-import qcck
-import qcio
-import qcutils
+import pfp_ck
+import pfp_io
+import pfp_utils
 import logging
 
 logger = logging.getLogger("pfp_log")
@@ -114,7 +115,7 @@ def pltfingerprint_createdict(cf,ds):
         if "in_filename" in cf["Variables"][var]:
             fp_info["variables"][var]["in_filename"] = str(cf["Variables"][var]["in_filename"])
         else:
-            fp_info["variables"][var]["in_filename"] = qcio.get_infilenamefromcf(cf)
+            fp_info["variables"][var]["in_filename"] = pfp_io.get_infilenamefromcf(cf)
         # get the variable name
         if "nc_varname" in cf["Variables"][var]:
             fp_info["variables"][var]["nc_varname"] = str(cf["Variables"][var]["nc_varname"])
@@ -129,6 +130,10 @@ def pltfingerprint_createdict(cf,ds):
             fp_info["variables"][var]["Upper"] = float(cf["Variables"][var]["Upper"])
         else:
             fp_info["variables"][var]["Upper"] = c.large_value
+        if "Interpolate" in cf["Variables"][var]:
+            fp_info["variables"][var]["Interpolate"] = cf["Variables"][var]["Interpolate"]
+        else:
+            fp_info["variables"][var]["Interpolate"] = "No"
     # get the start and end datetimes for all files and find the overlap period
     var_list = fp_info["variables"].keys()
     ds_0 = ds[fp_info["variables"][var_list[0]]["in_filename"]]
@@ -157,13 +162,13 @@ def pltfingerprint_createdict(cf,ds):
 def pltfingerprint_readncfiles(cf):
     ds = {}
     if "Files" in cf:
-        infilename = qcio.get_infilenamefromcf(cf)
-        ds[infilename] = qcio.nc_read_series(infilename)
+        infilename = pfp_io.get_infilenamefromcf(cf)
+        ds[infilename] = pfp_io.nc_read_series(infilename)
     for var in cf["Variables"].keys():
         if "in_filename" in cf["Variables"][var]:
             if cf["Variables"][var]["in_filename"] not in ds:
                 infilename = cf["Variables"][var]["in_filename"]
-                ds[cf["Variables"][var]["in_filename"]] = qcio.nc_read_series(infilename)
+                ds[cf["Variables"][var]["in_filename"]] = pfp_io.nc_read_series(infilename)
     return ds
 
 def plot_fingerprint(cf):
@@ -189,7 +194,7 @@ def plot_fingerprint(cf):
     title_str = site_name+' '+level
     title_str = title_str+' from '+str(overlap_start)+' to '+str(overlap_end)
     # loop over plots
-    opt = qcutils.get_keyvaluefromcf(cf,["Options"],"show_plots",default="yes")
+    opt = pfp_utils.get_keyvaluefromcf(cf,["Options"],"show_plots",default="yes")
     for nFig in cf["Plots"].keys():
         if opt.lower()=="yes":
             plt.ion()
@@ -199,15 +204,15 @@ def plot_fingerprint(cf):
         fig.clf()
         fig.canvas.set_window_title(cf["Plots"][str(nFig)]["Title"])
         plt.figtext(0.5,0.95,title_str,horizontalalignment='center')
-        fig_var_list = qcutils.GetPlotVariableNamesFromCF(cf,nFig)
+        fig_var_list = pfp_utils.GetPlotVariableNamesFromCF(cf,nFig)
         nPlots = len(fig_var_list)
         for n,var in enumerate(fig_var_list):
             nc_varname = fp_info["variables"][var]["nc_varname"]
             infilename = fp_info["variables"][var]["in_filename"]
             ldt = ds[infilename].series["DateTime"]["Data"]
             ts = fp_info["variables"][var]["time_step"]
-            si = qcutils.GetDateIndex(ldt,str(overlap_start),ts=ts,default=0,match='startnextday')
-            ei = qcutils.GetDateIndex(ldt,str(overlap_end),ts=ts,default=-1,match='endpreviousday')
+            si = pfp_utils.GetDateIndex(ldt,str(overlap_start),ts=ts,default=0,match='startnextday')
+            ei = pfp_utils.GetDateIndex(ldt,str(overlap_end),ts=ts,default=-1,match='endpreviousday')
             ldt = ldt[si:ei+1]
             nPerHr = int(float(60)/ts+0.5)
             nPerDay = int(float(24)*nPerHr+0.5)
@@ -231,8 +236,15 @@ def plot_fingerprint(cf):
                     msg = " No alias found for "+nc_varname+", skipping ..."
                     logger.warning(msg)
                     continue
-            data,flag,attr = qcutils.GetSeriesasMA(ds[infilename],nc_varname,si=si,ei=ei)
-            data = qcck.cliptorange(data,fp_info["variables"][var]["Lower"],fp_info["variables"][var]["Upper"])
+            data,flag,attr = pfp_utils.GetSeriesasMA(ds[infilename],nc_varname,si=si,ei=ei)
+            data = pfp_ck.cliptorange(data,fp_info["variables"][var]["Lower"],fp_info["variables"][var]["Upper"])
+            if fp_info["variables"][var]["Interpolate"] == "Yes":
+                time,_,_ = pfp_utils.GetSeriesasMA(ds[infilename], "time", si=si, ei=ei)
+                time = numpy.ma.masked_where(data.mask == True, time)
+                data_int = numpy.ma.compressed(data)
+                time_int = numpy.ma.compressed(time)
+                int_fn = Akima1DInterpolator(time_int, data_int)
+                data = int_fn(time)
             data_daily = data.reshape(nDays,nPerDay)
             units = str(ds[infilename].series[nc_varname]['Attr']['units'])
             label = var + ' (' + units + ')'
@@ -270,7 +282,7 @@ def plot_fingerprint(cf):
             plot_path = "plots/"
         if not os.path.exists(plot_path): os.makedirs(plot_path)
         pngname = plot_path+site_name.replace(' ','')+'_'+level+'_'
-        pngname = pngname+qcutils.GetPlotTitleFromCF(cf,nFig).replace(' ','_')+'.png'
+        pngname = pngname+pfp_utils.GetPlotTitleFromCF(cf,nFig).replace(' ','_')+'.png'
         fig.savefig(pngname,format='png')
         if opt.lower=="yes":
             plt.draw()
@@ -282,9 +294,9 @@ def plot_fluxnet(cf):
     """ Plot the FluxNet style plots. """
 
     series_list = cf["Variables"].keys()
-    infilename = qcio.get_infilenamefromcf(cf)
+    infilename = pfp_io.get_infilenamefromcf(cf)
 
-    ds = qcio.nc_read_series(infilename)
+    ds = pfp_io.nc_read_series(infilename)
     nRecs = int(ds.globalattributes["nc_nrecs"])
     zeros = numpy.zeros(nRecs,dtype=numpy.int32)
     ones = numpy.ones(nRecs,dtype=numpy.int32)
@@ -295,12 +307,12 @@ def plot_fluxnet(cf):
     edt = ldt[-1]
     # Tumbarumba doesn't have RH in the netCDF files
     if "RH" not in ds.series.keys():
-        Ah,f,a = qcutils.GetSeriesasMA(ds,'Ah')
-        Ta,f,a = qcutils.GetSeriesasMA(ds,'Ta')
+        Ah,f,a = pfp_utils.GetSeriesasMA(ds,'Ah')
+        Ta,f,a = pfp_utils.GetSeriesasMA(ds,'Ta')
         RH = mf.RHfromabsolutehumidity(Ah, Ta)
-        attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='relative_humidity')
+        attr = pfp_utils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='relative_humidity')
         flag = numpy.where(numpy.ma.getmaskarray(RH)==True,ones,zeros)
-        qcutils.CreateSeries(ds,"RH",RH,flag,attr)
+        pfp_utils.CreateSeries(ds,"RH",RH,flag,attr)
 
     nFig = 0
     plt.ion()
@@ -309,7 +321,7 @@ def plot_fluxnet(cf):
             logger.error("Series "+series+" not found in input file, skipping ...")
             continue
         logger.info(" Doing plot for "+series)
-        data,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,series))
+        data,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,series))
         nFig = nFig + 1
         fig = plt.figure(nFig,figsize=(10.9,7.5))
         fig.canvas.set_window_title(series)
@@ -374,7 +386,7 @@ def plottimeseries(cf,nFig,dsa,dsb,si,ei):
             hr2_ax = fig.add_axes([p['hr1_XAxOrg'],p['YAxOrg'],p['hr2_XAxLen'],p['ts_YAxLen']])
             #hr2_ax.hold(True)
             hr2_ax.plot(Hr2,Av2,'y-',Hr2,Mx2,'r-',Hr2,Mn2,'b-')
-            section = qcutils.get_cfsection(cf,series=ThisOne,mode='quiet')
+            section = pfp_utils.get_cfsection(cf,series=ThisOne,mode='quiet')
             if len(section)!=0:
                 if 'DiurnalCheck' in cf[section][ThisOne].keys():
                     NSdarr = numpy.array(eval(cf[section][ThisOne]['DiurnalCheck']['NumSd']),dtype=float)
@@ -424,7 +436,7 @@ def plottimeseries(cf,nFig,dsa,dsb,si,ei):
 def plot_quickcheck(cf):
     nFig = 0
     # get the netCDF filename
-    ncfilename = qcio.get_infilenamefromcf(cf)
+    ncfilename = pfp_io.get_infilenamefromcf(cf)
     # get the plot width and height
     PlotWidth_landscape = float(10)
     PlotHeight_landscape = float(6.5)
@@ -432,7 +444,7 @@ def plot_quickcheck(cf):
     PlotHeight_portrait = float(8)
     # read the netCDF file and return the data structure "ds"
     logger.info(' Opening and reading netCDF file '+ncfilename)
-    ds = qcio.nc_read_series(ncfilename)
+    ds = pfp_io.nc_read_series(ncfilename)
     if len(ds.series.keys())==0: logger.error(' netCDF file '+ncfilename+' not found'); sys.exit()
     # get the time step
     ts = int(ds.globalattributes['time_step'])
@@ -444,9 +456,9 @@ def plot_quickcheck(cf):
     StartDate = str(DateTime[0])
     EndDate = str(DateTime[-1])
     # find the start index of the first whole day (time=00:30)
-    si = qcutils.GetDateIndex(DateTime,StartDate,ts=ts,default=0,match='startnextday')
+    si = pfp_utils.GetDateIndex(DateTime,StartDate,ts=ts,default=0,match='startnextday')
     # find the end index of the last whole day (time=00:00)
-    ei = qcutils.GetDateIndex(DateTime,EndDate,ts=ts,default=-1,match='endpreviousday')
+    ei = pfp_utils.GetDateIndex(DateTime,EndDate,ts=ts,default=-1,match='endpreviousday')
     DateTime = DateTime[si:ei+1]
     PlotTitle = SiteName + ': ' + str(DateTime[0]) + ' to ' + str(DateTime[-1])
     # get the final start and end dates
@@ -455,44 +467,44 @@ def plot_quickcheck(cf):
     # get the 30 minute data from the data structure
     logger.info(' Getting data from data structure ')
     #  radiation first ...
-    Mnth_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Month'),si=si,ei=ei)
-    Hour_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Hour'),si=si,ei=ei)
-    Mnit_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Minute'),si=si,ei=ei)
-    Fsd,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Fsd'),si=si,ei=ei)
+    Mnth_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Month'),si=si,ei=ei)
+    Hour_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Hour'),si=si,ei=ei)
+    Mnit_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Minute'),si=si,ei=ei)
+    Fsd,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Fsd'),si=si,ei=ei)
     if 'Fsd_syn' in ds.series.keys():
-        Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,'Fsd_syn',si=si,ei=ei)
+        Fsd_syn,flag,attr = pfp_utils.GetSeriesasMA(ds,'Fsd_syn',si=si,ei=ei)
         index = numpy.where(numpy.ma.getmaskarray(Fsd)==True)[0]
         #index = numpy.ma.where(numpy.ma.getmaskarray(Fsd)==True)[0]
         Fsd[index] = Fsd_syn[index]
     night_mask = (Fsd<10)
     day_mask = (Fsd>=10)
-    Fsd_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Fsd'),si=si,ei=ei)
-    Fsu_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Fsu'),si=si,ei=ei)
-    Fld_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Fld'),si=si,ei=ei)
-    Flu_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Flu'),si=si,ei=ei)
-    Fn_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Fn'),si=si,ei=ei)
+    Fsd_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Fsd'),si=si,ei=ei)
+    Fsu_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Fsu'),si=si,ei=ei)
+    Fld_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Fld'),si=si,ei=ei)
+    Flu_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Flu'),si=si,ei=ei)
+    Fn_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Fn'),si=si,ei=ei)
     #  then fluxes ...
-    Fg_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Fg'),si=si,ei=ei)
+    Fg_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Fg'),si=si,ei=ei)
     Fa2_30min = Fn_30min - Fg_30min
-    Fa_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Fa'),si=si,ei=ei)
+    Fa_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Fa'),si=si,ei=ei)
     index = numpy.where((numpy.ma.getmaskarray(Fa_30min)==True)&(numpy.ma.getmaskarray(Fa2_30min)==False))[0]
     Fa_30min[index] = Fa2_30min[index]
-    Fe_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Fe'),si=si,ei=ei)
-    Fh_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Fh'),si=si,ei=ei)
-    Fc_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Fc'),si=si,ei=ei)
-    Fc_units = ds.series[qcutils.GetAltName(cf,ds,'Fc')]['Attr']['units']
-    us_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'ustar'),si=si,ei=ei)
+    Fe_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Fe'),si=si,ei=ei)
+    Fh_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Fh'),si=si,ei=ei)
+    Fc_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Fc'),si=si,ei=ei)
+    Fc_units = ds.series[pfp_utils.GetAltName(cf,ds,'Fc')]['Attr']['units']
+    us_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'ustar'),si=si,ei=ei)
     #  then meteorology ...
-    Ta_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Ta'),si=si,ei=ei)
-    H2O_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'H2O'),si=si,ei=ei)
-    H2O_units = ds.series[qcutils.GetAltName(cf,ds,'H2O')]['Attr']['units']
-    CO2_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'CO2'),si=si,ei=ei)
-    CO2_units = ds.series[qcutils.GetAltName(cf,ds,'CO2')]['Attr']['units']
-    Rain_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Precip'),si=si,ei=ei)
-    Ws_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Ws'),si=si,ei=ei)
+    Ta_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Ta'),si=si,ei=ei)
+    H2O_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'H2O'),si=si,ei=ei)
+    H2O_units = ds.series[pfp_utils.GetAltName(cf,ds,'H2O')]['Attr']['units']
+    CO2_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'CO2'),si=si,ei=ei)
+    CO2_units = ds.series[pfp_utils.GetAltName(cf,ds,'CO2')]['Attr']['units']
+    Rain_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Precip'),si=si,ei=ei)
+    Ws_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Ws'),si=si,ei=ei)
     #  then soil ...
-    Sws_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Sws'),si=si,ei=ei)
-    Ts_30min,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Ts'),si=si,ei=ei)
+    Sws_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Sws'),si=si,ei=ei)
+    Ts_30min,flag,attr = pfp_utils.GetSeriesasMA(ds,pfp_utils.GetAltName(cf,ds,'Ts'),si=si,ei=ei)
 
     # get the number of days in the data set
     ntsInDay = float(24.0*60.0/float(ts))
@@ -1090,13 +1102,13 @@ def plot_onetimeseries_left(fig,n,ThisOne,xarray,yarray,p):
     Purpose:
      Plots a single time series graph with labelling on the left y axis.
     Usage:
-     qcplot.plot_onetimeseries_left(fig,n,ThisOne,XArray,YArray,p)
+     pfp_plot.plot_onetimeseries_left(fig,n,ThisOne,XArray,YArray,p)
       where fig     is a matplotlib figure instance
             n       is the number of this graph
             ThisOne is the series label
             XArray  is a numpy ndarray or masked array of X data (usually datetime)
             YArray  is a numpy ndarray or masked array of Y data
-            p       is a dictionary of plot data (created using qcplot.plot_setup)
+            p       is a dictionary of plot data (created using pfp_plot.plot_setup)
     Side effects:
      Creates a matplotlib plot of time series, diurnal variation and flag statistics.
     Author: PRI
@@ -1189,15 +1201,15 @@ def plotxy(cf,nFig,plt_cf,dsa,dsb,si,ei):
     logger.info(' Plotting xy: '+str(XSeries)+' v '+str(YSeries))
     if dsa == dsb:
         for xname,yname in zip(XSeries,YSeries):
-            xa,flag,attr = qcutils.GetSeriesasMA(dsa,xname,si=si,ei=ei)
-            ya,flag,attr = qcutils.GetSeriesasMA(dsa,yname,si=si,ei=ei)
+            xa,flag,attr = pfp_utils.GetSeriesasMA(dsa,xname,si=si,ei=ei)
+            ya,flag,attr = pfp_utils.GetSeriesasMA(dsa,yname,si=si,ei=ei)
             xyplot(xa,ya,sub=[1,1,1],regr=1,xlabel=xname,ylabel=yname)
     else:
         for xname,yname in zip(XSeries,YSeries):
-            xa,flag,attr = qcutils.GetSeriesasMA(dsa,xname,si=si,ei=ei)
-            ya,flag,attr = qcutils.GetSeriesasMA(dsa,yname,si=si,ei=ei)
-            xb,flag,attr = qcutils.GetSeriesasMA(dsb,xname,si=si,ei=ei)
-            yb,flag,attr = qcutils.GetSeriesasMA(dsb,yname,si=si,ei=ei)
+            xa,flag,attr = pfp_utils.GetSeriesasMA(dsa,xname,si=si,ei=ei)
+            ya,flag,attr = pfp_utils.GetSeriesasMA(dsa,yname,si=si,ei=ei)
+            xb,flag,attr = pfp_utils.GetSeriesasMA(dsb,xname,si=si,ei=ei)
+            yb,flag,attr = pfp_utils.GetSeriesasMA(dsb,yname,si=si,ei=ei)
             xyplot(xa,ya,sub=[1,2,1],xlabel=xname,ylabel=yname)
             xyplot(xb,yb,sub=[1,2,2],regr=1,xlabel=xname,ylabel=yname)
     fig.show()
