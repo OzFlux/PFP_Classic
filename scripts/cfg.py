@@ -1,5 +1,12 @@
 version_name = "PyFluxPro"
-version_number = "V0.1.5"
+version_number = "V0.1.6"
+# V0.1.6 - fixed bug in pfp_ck.do_li7500check()
+#          - bug caused by use of irga_dependents in final
+#            loop instead of irga_list
+#          - bug meant covariances (UzA, UzC etc) were not
+#            filtered based on dependencies on AGC_IRGA,
+#            Ah_IRGA_Sd and CO2_IRGA_Sd
+#          - bug was introduced on 15th July 2017 at V0.1.0
 # V0.1.5 - change source file names from qc*.py to pfp_*.py
 # V0.1.4 - implement MPT and MDS
 #          - implementation of u* threshold detection using the
