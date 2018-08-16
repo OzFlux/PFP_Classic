@@ -23,13 +23,23 @@ if len(sys.argv)==1:
     print "where <country> can be;"
     print " Australia"
     print " USA"
+    print " NZ"
     sys.exit
 
 if sys.argv[1].lower()=="australia":
+    print "Get ERAI data for Australia"
     erai_info["area"] = "-10/110/-45/155"
-    target_directory = "/home/peter/OzFlux/ERAI/"
-    start_date = "2017-01-01"
-    end_date = "2017-08-30"
+    target_directory = "/run/media/cilli/cillidata/cilli/1_Work/1_OzFlux/Sites/ERAI/AUS/"
+    start_date = "2018-01-01"
+    end_date = "2018-04-30"
+    print "Start=",start_date," End=",end_date
+elif sys.argv[1].lower()=="nz":
+    print "Get ERAI data for New Zealand"
+    erai_info["area"] = "-30/165/-50/180"
+    target_directory = "/run/media/cilli/cillidata/cilli/1_Work/1_OzFlux/Sites/ERAI/NZ/"
+    start_date = "2011-01-01"
+    end_date = "2018-02-28"
+    print "Start=",start_date," End=",end_date
 elif sys.argv[1].lower()=="usa":
     erai_info["area"] = "70/229.5/30/300"
     target_directory = "/home/peter/AmeriFlux/ERAI/"
