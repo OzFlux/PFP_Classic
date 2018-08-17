@@ -35,6 +35,11 @@ elif sys.argv[1].lower()=="usa":
     target_directory = "/home/peter/AmeriFlux/ERAI/"
     start_date = "2017-01-01"
     end_date = "2017-10-31"
+elif sys.argv[1].lower()=="china":
+    erai_info["area"] = "60/80/20/140"
+    target_directory = "/home/peter/ChinaFlux/ERAI/"
+    start_date = "2014-01-01"
+    end_date = "2014-12-31"
 else:
     print "Unrecognised country option entered on command line"
     print "Valid country options are:"
