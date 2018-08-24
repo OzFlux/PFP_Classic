@@ -652,6 +652,25 @@ def GetERFromFc(cf, ds, info):
             ER["Data"] = numpy.ma.masked_where(daynight_indicator["values"] == 0, Fc["Data"], copy=True)
             for item in daynight_indicator["attr"]:
                 ER["Attr"][item] = daynight_indicator["attr"][item]
+            # apply quantile filter
+            if pfp_utils.cfoptionskeylogical(cf,Key='UseQuantileFilter',default=False):
+                # save the data before applying the quantile filter
+                ER["Attr"]["long_name"] = ER["Attr"]["long_name"]+", quantile filter not used"
+                ER["Label"] = "ER_nqf"
+                pfp_utils.CreateVariable(ds, ER)
+                # get the quantiles, default 2.5%
+                quantile_lower = float(pfp_utils.get_keyvaluefromcf(cf,["Options"],"QuantileValue",default="2.5"))
+                quantile_upper = float(100) - quantile_lower
+                q = numpy.percentile(numpy.ma.compressed(ER["Data"]),[quantile_lower,quantile_upper])
+                # apply the quantile filter to the data
+                ER["Label"] = "ER"
+                ER["Data"] = numpy.ma.masked_where((ER["Data"] < q[0]) | (ER["Data"] > q[1]), ER["Data"])
+                # set the flag for the filtered  data
+                index_qf = numpy.ma.where((ER["Data"] < q[0]) | (ER["Data"] > q[1]))[0]
+                ER["Flag"][index_qf] = numpy.int32(65)
+                # update the attributes
+                ER["Attr"]["long_name"].replace(", quantile filter not used", ", quantile filter used")
+                ER["Attr"]["ER_quantile"] = str(quantile_lower) + "," + str(quantile_upper)
             pfp_utils.CreateVariable(ds, ER)
 
     return
