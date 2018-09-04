@@ -198,6 +198,10 @@ def footprint_main(cf, mode):
                 # plot on screen, in jpg and write kml (google earth) file
                 plotphifield(x, y, ldt[si], ldt[ei], f, d["site_name"], mode, clevs, imagename)
                 kml_write(lon, lat, ldt[si], ldt[ei], f, d["site_name"], mode, clevs, fi, d["plot_path"])
+            plot_num = plt.gcf().number
+            if  plot_num > 20:
+                plt.close("all")
+            
 
         # Some stats:
         #  a) Possible total number of footprints per climatology = ei - si
@@ -534,14 +538,19 @@ def kml_write(lon, lat, zt1, zt2, data, station, mode, clevs, fi, plot_path):
     cs = plt.contourf(data,clevs,cmap=plt.get_cmap('hsv'),alpha=0.5)
     plt.axis('off')
     plt.savefig(plotname,transparent=True)
-    plt.clf()
+    #plt.clf()
+    fn = plt.gcf().number
+    plt.close(fn)
     # draw a new figure and replot the colorbar there
     fig,ax = plt.subplots(figsize=(width,height))
     cbar = plt.colorbar(cs,ax=ax)
     cbar.set_ticks(clevs)
-    cbar.set_label('Footprint in %')
+    cbar.set_label('Footprint in fraction')
     ax.remove()
     plt.savefig(plot_path+'cbar.png',bbox_inches='tight') #, transparent=True)
+    fn = plt.gcf().number
+    #plt.clf()
+    plt.close(fn)
     plt.ion()
     # get the lat/lon bounds of the area
     lon1 = lon[0]
@@ -617,6 +626,7 @@ def plotphifield(x, y, zt1, zt2, data, station, mode, clevs, imagename):
         plt.imshow(img, zorder=0, extent=[x_ll, x_ur, y_ll, y_ur])
     plt.savefig(plotname)
     plt.draw()
+    plt.pause(1e-9)
     plt.ioff()
     
 #def xldate_to_datetime(xldate):

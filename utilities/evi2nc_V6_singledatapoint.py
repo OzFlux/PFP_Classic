@@ -83,15 +83,16 @@ for site in site_list:
     quality = nc_file.variables["pr"+site][:]
     
     # QC the EVI
-    #evi_qc0 = numpy.ma.masked_where(quality > evi_quality_threshold, evi)
-    #evi_qc  = numpy.ma.masked_where(quality < 0, evi_qc0)
-    evi_qc = numpy.ma.masked_where((quality > evi_quality_threshold) | (quality < 0) | (evi < 0), evi)
-    # get the mean and standard deviation of the QC'd pixels
-    evi_median = numpy.ma.median(evi.reshape(evi_qc.shape[0],-1),axis=1)
-    evi_mean = numpy.ma.mean(evi.reshape(evi_qc.shape[0],-1),axis=1)
+    evi_qc = numpy.ma.masked_where((quality > evi_quality_threshold) | (quality < 0), evi)
+    evi_mean=evi_qc
     evi_sd = numpy.ma.std(evi.reshape(evi_qc.shape[0],-1),axis=1)
-    evi_mean = numpy.ma.masked_where(evi_sd > evi_sd_threshold,evi_mean)
-    evi_sd = numpy.ma.masked_where(evi_sd > evi_sd_threshold,evi_sd)
+    #!evi_qc = numpy.ma.masked_where((quality > evi_quality_threshold) | (quality < 0) | (evi < 0), evi)
+    #!# get the mean and standard deviation of the QC'd pixels
+    #!evi_median = numpy.ma.median(evi.reshape(evi_qc.shape[0],-1),axis=1)
+    #!evi_mean = numpy.ma.mean(evi.reshape(evi_qc.shape[0],-1),axis=1)
+    #!evi_sd = numpy.ma.std(evi.reshape(evi_qc.shape[0],-1),axis=1)
+    #!evi_mean = numpy.ma.masked_where(evi_sd > evi_sd_threshold,evi_mean)
+    #!evi_sd = numpy.ma.masked_where(evi_sd > evi_sd_threshold,evi_sd)
     # strip out masked elements, convert to ndarray from masked array and get various
     # time series to do the interpolation
 
