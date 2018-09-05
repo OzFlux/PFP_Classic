@@ -22,7 +22,7 @@ import pfp_utils
 # from NASA directly using APPEARS and a file list for the sites.   CME 20180314
 # ============================================================================
 
-do_plots = False # True 
+do_plots = True # False #
 # load the control file contents
 cf = pfp_io.load_controlfile(path="../controlfiles/MODIS/")
 # get the DAP file name
@@ -42,6 +42,7 @@ modis_time = nc_file.variables["time"][:]
 # get a Python datetime series from the netCDF time (UTC)
 modis_time_units = getattr(nc_file.variables["time"],"units")
 modis_dt =  netCDF4.num2date(modis_time,modis_time_units)
+modis_dt=modis_dt.tolist()
 # now we loop over the sites in the control file
 site_list = cf["Sites"].keys()
 #site_list = ["Calperum"]
@@ -65,37 +66,15 @@ for site in site_list:
     evi_smooth_filter = cf["Sites"][site]["evi_smooth_filter"]
     sg_num_points = int(cf["Sites"][site]["sg_num_points"])
     sg_order = int(cf["Sites"][site]["sg_order"])
-    #!# get the upper and lower bounds of the cut out
-    #!delta_width = site_cutout*lat_resolution/2
-    #!delta_height = site_cutout*lon_resolution/2
-    #!lat_bound_lower = site_latitude - delta_width
-    #!lat_bound_upper = site_latitude + delta_width
-    #!lon_bound_lower = site_longitude - delta_height
-    #!lon_bound_upper = site_longitude + delta_height
-    # get the EVI and the quality flag for this site
-    
-    #!lat_index = numpy.where((lat>=lat_bound_lower)&(lat<=lat_bound_upper))[0]
-    #!lon_index = numpy.where((lon>=lon_bound_lower)&(lon<=lon_bound_upper))[0]
-
     # get the EVI
     evi = nc_file.variables[site][:]
     # get the quality flags
     quality = nc_file.variables["pr"+site][:]
-    
-    # QC the EVI
+    #!# QC the EVI
     evi_qc = numpy.ma.masked_where((quality > evi_quality_threshold) | (quality < 0), evi)
     evi_mean=evi_qc
-    evi_sd = numpy.ma.std(evi.reshape(evi_qc.shape[0],-1),axis=1)
-    #!evi_qc = numpy.ma.masked_where((quality > evi_quality_threshold) | (quality < 0) | (evi < 0), evi)
-    #!# get the mean and standard deviation of the QC'd pixels
-    #!evi_median = numpy.ma.median(evi.reshape(evi_qc.shape[0],-1),axis=1)
-    #!evi_mean = numpy.ma.mean(evi.reshape(evi_qc.shape[0],-1),axis=1)
-    #!evi_sd = numpy.ma.std(evi.reshape(evi_qc.shape[0],-1),axis=1)
-    #!evi_mean = numpy.ma.masked_where(evi_sd > evi_sd_threshold,evi_mean)
-    #!evi_sd = numpy.ma.masked_where(evi_sd > evi_sd_threshold,evi_sd)
     # strip out masked elements, convert to ndarray from masked array and get various
     # time series to do the interpolation
-
     idx = numpy.where(numpy.ma.getmaskarray(evi_mean)==False)[0]
     evi_raw = numpy.array(evi_mean[idx])
     modis_time_raw = numpy.array(modis_time[idx])
@@ -144,13 +123,13 @@ for site in site_list:
             for j in range(evi.shape[2]):
                 ax1.plot(modis_dt,evi[:,i,j],'b.')
                 ax1.plot(modis_dt,evi_qc[:,i,j],'r+')
-        ax1.errorbar(modis_dt,evi_mean,yerr=evi_sd, fmt='ro')
+        #ax1.errorbar(modis_dt,evi_mean,yerr=evi_sd, fmt='ro')
         ax1.plot(modis_dt,evi_interp,'g^')
         ax1.plot(modis_dt,evi_interp,'g--')
         ax1.plot(modis_dt,evi_interp_smooth,'y-')
         #for item in fire_dates: plt.axvline(item)
         ax2 = plt.subplot(212,sharex=ax1)
-        ax2.errorbar(modis_dt,evi_mean,yerr=evi_sd, fmt='ro')
+        #ax2.errorbar(modis_dt,evi_mean,yerr=evi_sd, fmt='ro')
         ax2.plot(dt_UTC,evi_interp2_smooth,'b-')
         png_filename = out_name.replace(".nc",".png")
         fig.savefig(png_filename,format="png")
