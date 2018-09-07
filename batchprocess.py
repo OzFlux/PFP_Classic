@@ -246,7 +246,7 @@ for level in level_list:
             cf_file_name = os.path.split(cfname)
             logger.info('Starting L6 processing with '+cf_file_name[1])
             try:
-                    cf = pfp_io.get_controlfilecontents(cfname)
+                cf = pfp_io.get_controlfilecontents(cfname)
                 if "Options" not in cf: cf["Options"]={}
                 cf["Options"]["call_mode"] = "batch"
                 cf["Options"]["show_plots"] = False
