@@ -19,18 +19,18 @@ from configobj import ConfigObj
 import xlrd
 # check the scripts directory is present
 if not os.path.exists("../scripts/"):
-    print "erai2nc: the scripts directory is missing"
+    print "get_isd_from_noaa: the scripts directory is missing"
     sys.exit()
 # since the scripts directory is there, try importing the modules
 sys.path.append('../scripts')
 # PFP
-import qcio
-import qclog
+import pfp_io
+import pfp_log
 
 t = time.localtime()
 rundatetime = datetime.datetime(t[0],t[1],t[2],t[3],t[4],t[5]).strftime("%Y%m%d%H%M")
 log_filename = 'get_isd_from_noaa_'+rundatetime+'.log'
-logger = qclog.init_logger(logger_name="pfp_log", file_handler=log_filename)
+logger = pfp_log.init_logger(logger_name="pfp_log", file_handler=log_filename)
 
 def read_site_master(xl_file_path, sheet_name):
     """
@@ -59,7 +59,7 @@ def read_site_master(xl_file_path, sheet_name):
     return site_info
 
 # read the control file file
-cf = qcio.load_controlfile(path='../controlfiles')
+cf = pfp_io.load_controlfile(path='../controlfiles')
 xl_file_path = cf["Files"]["xl_file_path"]
 xl_sheet_name = cf["Files"]["xl_sheet_name"]
 isd_base_path = cf["Files"]["isd_base_path"]

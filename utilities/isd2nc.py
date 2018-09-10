@@ -29,14 +29,14 @@ if not os.path.exists("../scripts/"):
 sys.path.append('../scripts')
 import constants as c
 import meteorologicalfunctions as mf
-import qcio
-import qclog
-import qcutils
+import pfp_io
+import pfp_log
+import pfp_utils
 
 t = time.localtime()
 rundatetime = datetime.datetime(t[0],t[1],t[2],t[3],t[4],t[5]).strftime("%Y%m%d%H%M")
 log_filename = 'isd2nc_'+rundatetime+'.log'
-logger = qclog.init_logger(logger_name="pfp_log", file_handler=log_filename)
+logger = pfp_log.init_logger(logger_name="pfp_log", file_handler=log_filename)
 
 def average_duplicate_times(ds_in, time_step):
     """
@@ -54,7 +54,7 @@ def average_duplicate_times(ds_in, time_step):
     """
     logger.info("Getting data onto a regular time step")
     # get the time as a number (see attr["units"] for units)
-    time_var = qcutils.GetVariable(ds_in, "time")
+    time_var = pfp_utils.GetVariable(ds_in, "time")
     # generate an array of bin edges for use by binned_statistics()
     bin_width = time_step*60
     # round the ISD start time to an integral of the time step
@@ -74,7 +74,7 @@ def average_duplicate_times(ds_in, time_step):
     f0 = numpy.zeros(nrecs)
     f1 = numpy.ones(nrecs)
     # create an output data structure with a copy of the input global attributes
-    ds_out = qcio.DataStructure()
+    ds_out = pfp_io.DataStructure()
     ds_out.globalattributes = copy.deepcopy(ds_in.globalattributes)
     # update the number of records
     ds_out.globalattributes["nc_nrecs"] = nrecs
@@ -85,7 +85,7 @@ def average_duplicate_times(ds_in, time_step):
     # loop over variables
     for label in labels:
         # get the variable
-        var_in = qcutils.GetVariable(ds_in, label)
+        var_in = pfp_utils.GetVariable(ds_in, label)
         # indices of non-masked elements
         idx = numpy.ma.where(numpy.ma.getmaskarray(var_in["Data"]) == False)[0]
         # check to see if we have at least 1 data point to deal with
@@ -113,7 +113,7 @@ def average_duplicate_times(ds_in, time_step):
             var_out = {"Label":label, "Data":numpy.ma.masked_all(nrecs), "Flag":f1,
                        "Attr":var_in["Attr"]}
         # and write the output variable to the output data structure
-        qcutils.CreateVariable(ds_out, var_out)
+        pfp_utils.CreateVariable(ds_out, var_out)
     # generate a series of the bin mid-points
     mids = edges[1:]
     # and convert these to a series of Python datetimes
@@ -121,14 +121,14 @@ def average_duplicate_times(ds_in, time_step):
     ldt_out = {"Label":"DateTime", "Data":netCDF4.num2date(mids, time_var["Attr"]["units"]),
                "Flag":f0, "Attr":attr}
     # and write the datetime to the output data structure
-    qcutils.CreateVariable(ds_out, ldt_out)
-    qcutils.get_nctime_from_datetime(ds_out)
+    pfp_utils.CreateVariable(ds_out, ldt_out)
+    pfp_utils.get_nctime_from_datetime(ds_out)
     # get wind speed and direction from components
-    U = qcutils.GetVariable(ds_out, "u")
-    V = qcutils.GetVariable(ds_out, "v")
-    WS, WD = qcutils.convert_UVtoWSWD(U, V)
-    qcutils.CreateVariable(ds_out, WS)
-    qcutils.CreateVariable(ds_out, WD)
+    U = pfp_utils.GetVariable(ds_out, "u")
+    V = pfp_utils.GetVariable(ds_out, "v")
+    WS, WD = pfp_utils.convert_UVtoWSWD(U, V)
+    pfp_utils.CreateVariable(ds_out, WS)
+    pfp_utils.CreateVariable(ds_out, WD)
     return ds_out
 
 def contiguous_regions(condition, max_interp_length = 12):
@@ -183,7 +183,7 @@ def convert_time_zone(ds, from_time_zone_in, to_time_zone_in):
     ds.series["DateTime"]["Data"] = to_dt_naive_nodst
     ds.series["DateTime"]["Attr"]["time_zone"] = to_time_zone_in
     # and update the time variable
-    qcutils.get_nctime_from_datetime(ds)
+    pfp_utils.get_nctime_from_datetime(ds)
     return
 
 def interpolate_1d(x1, y1, x2):
@@ -225,45 +225,45 @@ def interpolate_ds(ds_in, ts):
     """
     logger.info("Interpolating data")
     # instance the output data structure
-    ds_out = qcio.DataStructure()
+    ds_out = pfp_io.DataStructure()
     # copy the global attributes
     ds_out.globalattributes = copy.deepcopy(ds_in.globalattributes)
     # add the time step
     ds_out.globalattributes["time_step"] = str(ts)
     # generate a regular time series at the required time step
     dt = ds_in.series["DateTime"]["Data"]
-    dt0 = qcutils.rounddttots(dt[0], ts=ts)
+    dt0 = pfp_utils.rounddttots(dt[0], ts=ts)
     if dt0 < dt[0]:
         dt0 = dt0 + datetime.timedelta(minutes=ts)
-    dt1 = qcutils.rounddttots(dt[-1], ts=ts)
+    dt1 = pfp_utils.rounddttots(dt[-1], ts=ts)
     if dt1 > dt[-1]:
         dt1 = dt1 - datetime.timedelta(minutes=ts)
-    idt = [result for result in qcutils.perdelta(dt0, dt1, datetime.timedelta(minutes=ts))]
+    idt = [result for result in pfp_utils.perdelta(dt0, dt1, datetime.timedelta(minutes=ts))]
     x1 = numpy.array([toTimestamp(dt[i]) for i in range(len(dt))])
     x2 = numpy.array([toTimestamp(idt[i]) for i in range(len(idt))])
     # loop over the series in the data structure and interpolate
     flag = numpy.zeros(len(idt), dtype=numpy.int32)
     attr = {"long_name":"Datetime", "units":"none"}
     ldt_var = {"Label":"DateTime", "Data":idt, "Flag":flag, "Attr":attr}
-    qcutils.CreateVariable(ds_out, ldt_var)
-    qcutils.get_nctime_from_datetime(ds_out)
+    pfp_utils.CreateVariable(ds_out, ldt_var)
+    pfp_utils.get_nctime_from_datetime(ds_out)
     nrecs = len(idt)
     ds_out.globalattributes["nc_nrecs"] = nrecs
     # first, we do the air temperature, dew point temperature and surface pressure
     f0 = numpy.zeros(nrecs, dtype=numpy.int32)
     f1 = numpy.ones(nrecs, dtype=numpy.int32)
     for label in ["Ta", "Td", "ps", "RH", "Ah", "q"]:
-        var_out = qcutils.create_empty_variable(label, nrecs, datetime=idt)
-        var_in = qcutils.GetVariable(ds_in, label)
+        var_out = pfp_utils.create_empty_variable(label, nrecs, datetime=idt)
+        var_in = pfp_utils.GetVariable(ds_in, label)
         var_out["Data"] = interpolate_1d(x1, var_in["Data"], x2)
         var_out["Flag"] = numpy.where(numpy.ma.getmaskarray(var_out["Data"])==True, f1, f0)
         var_out["Attr"] = copy.deepcopy(var_in["Attr"])
-        qcutils.CreateVariable(ds_out, var_out)
+        pfp_utils.CreateVariable(ds_out, var_out)
     # now clamp the dew point so that TD <= TA
-    Ta = qcutils.GetVariable(ds_out, "Ta")
-    Td = qcutils.GetVariable(ds_out, "Td")
+    Ta = pfp_utils.GetVariable(ds_out, "Ta")
+    Td = pfp_utils.GetVariable(ds_out, "Td")
     Td["Data"] = numpy.ma.where(Td["Data"]<=Ta["Data"], x=Td["Data"], y=Ta["Data"])
-    qcutils.CreateVariable(ds_out, Td)
+    pfp_utils.CreateVariable(ds_out, Td)
     # now we do wind speed and direction by converting to U and V components
     interpolate_wswd(ds_in, x1, ds_out, x2)
     # and lastly, do precipitation
@@ -290,18 +290,18 @@ def interpolate_precip(ds_in, x1, ds_out, x2):
     """
     nrecs = ds_out.globalattributes["nc_nrecs"]
     # local pointer to the output datetime
-    ldt = qcutils.GetVariable(ds_out, "DateTime")
+    ldt = pfp_utils.GetVariable(ds_out, "DateTime")
     # just assign any precipitation to the ISD time stamp.
-    precip_out = qcutils.create_empty_variable("Precip", nrecs, datetime=ldt["Data"])
+    precip_out = pfp_utils.create_empty_variable("Precip", nrecs, datetime=ldt["Data"])
     # zero the data array
     precip_out["Data"] = precip_out["Data"] * float(0)
-    precip_in = qcutils.GetVariable(ds_in, "Precip")
+    precip_in = pfp_utils.GetVariable(ds_in, "Precip")
     # get indices of elements where the times match
     idx = numpy.searchsorted(x2, numpy.intersect1d(x2, x1))
     precip_out["Data"][idx] = precip_in["Data"]
     precip_out["Flag"] = numpy.zeros(nrecs, dtype=numpy.int32)
     precip_out["Attr"] = copy.deepcopy(precip_in["Attr"])
-    qcutils.CreateVariable(ds_out, precip_out)
+    pfp_utils.CreateVariable(ds_out, precip_out)
     return
 
 def interpolate_wswd(ds_in, x1, ds_out, x2):
@@ -320,17 +320,17 @@ def interpolate_wswd(ds_in, x1, ds_out, x2):
     f0 = numpy.zeros(nrecs, dtype=numpy.int32)
     f1 = numpy.ones(nrecs, dtype=numpy.int32)
     # local pointer to the output datetime
-    ldt = qcutils.GetVariable(ds_out, "DateTime")
+    ldt = pfp_utils.GetVariable(ds_out, "DateTime")
     # create empty variables for the output dara
-    Ws_out = qcutils.create_empty_variable("Ws", nrecs, datetime=ldt["Data"])
-    Wd_out = qcutils.create_empty_variable("Wd", nrecs, datetime=ldt["Data"])
-    U_out = qcutils.create_empty_variable("u", nrecs, datetime=ldt["Data"])
-    V_out = qcutils.create_empty_variable("v", nrecs, datetime=ldt["Data"])
+    Ws_out = pfp_utils.create_empty_variable("Ws", nrecs, datetime=ldt["Data"])
+    Wd_out = pfp_utils.create_empty_variable("Wd", nrecs, datetime=ldt["Data"])
+    U_out = pfp_utils.create_empty_variable("u", nrecs, datetime=ldt["Data"])
+    V_out = pfp_utils.create_empty_variable("v", nrecs, datetime=ldt["Data"])
     # get the input wind speed and direction
-    Ws_in = qcutils.GetVariable(ds_in, "Ws")
-    Wd_in = qcutils.GetVariable(ds_in, "Wd")
+    Ws_in = pfp_utils.GetVariable(ds_in, "Ws")
+    Wd_in = pfp_utils.GetVariable(ds_in, "Wd")
     # covert to U and V components
-    U_in, V_in = qcutils.convert_WSWDtoUV(Ws_in, Wd_in)
+    U_in, V_in = pfp_utils.convert_WSWDtoUV(Ws_in, Wd_in)
     # interpolate the components to the output time stamp
     U_out["Data"] = interpolate_1d(x1, U_in["Data"], x2)
     V_out["Data"] = interpolate_1d(x1, V_in["Data"], x2)
@@ -342,18 +342,18 @@ def interpolate_wswd(ds_in, x1, ds_out, x2):
     V_out["Attr"]["long_name"] = "V component of wind velocity, postive north"
     V_out["Attr"]["units"] = "m/s"
     # write the U and V components to the output data structure
-    qcutils.CreateVariable(ds_out, U_out)
-    qcutils.CreateVariable(ds_out, V_out)
+    pfp_utils.CreateVariable(ds_out, U_out)
+    pfp_utils.CreateVariable(ds_out, V_out)
     # convert the interpolated components to wind speed and direction
-    Ws_out, Wd_out = qcutils.convert_UVtoWSWD(U_out, V_out)
+    Ws_out, Wd_out = pfp_utils.convert_UVtoWSWD(U_out, V_out)
     # add the Qc flag and update the variable attributes
     Ws_out["Flag"] = numpy.ma.where(numpy.ma.getmaskarray(Ws_out["Data"])==True, f1, f0)
     Wd_out["Flag"] = numpy.ma.where(numpy.ma.getmaskarray(Wd_out["Data"])==True, f1, f0)
     Ws_out["Attr"] = copy.deepcopy(Ws_in["Attr"])
     Wd_out["Attr"] = copy.deepcopy(Wd_in["Attr"])
     # write the wind speed and direction into the output data structure
-    qcutils.CreateVariable(ds_out, Ws_out)
-    qcutils.CreateVariable(ds_out, Wd_out)
+    pfp_utils.CreateVariable(ds_out, Ws_out)
+    pfp_utils.CreateVariable(ds_out, Wd_out)
     return
 
 def mask_long_gaps(ds_int, ds_avg, max_interp_length):
@@ -379,8 +379,8 @@ def mask_long_gaps(ds_int, ds_avg, max_interp_length):
             logger.warning(msg)
             continue
         # get the average and interpolated variables
-        var_avg = qcutils.GetVariable(ds_avg, label)
-        var_int = qcutils.GetVariable(ds_int, label)
+        var_avg = pfp_utils.GetVariable(ds_avg, label)
+        var_int = pfp_utils.GetVariable(ds_int, label)
         # make a copy of the interpolated variable as a base for the output variable
         var_mlg = copy.deepcopy(var_int)
         # get a boolean array that is True where the average data is masked
@@ -395,7 +395,7 @@ def mask_long_gaps(ds_int, ds_avg, max_interp_length):
             var_mlg["Data"].mask[start:stop] = True
             var_mlg["Flag"][start:stop] = 1
         # write the masked variable back to the output data structure
-        qcutils.CreateVariable(ds_mlg, var_mlg)
+        pfp_utils.CreateVariable(ds_mlg, var_mlg)
     # return a copy of the interpolated data structure with gaps longer than max_interp_length masked
     return ds_mlg
 
@@ -427,7 +427,7 @@ def read_isd_file(isd_file_path):
         with open(isd_file_path) as fp:
             content = fp.readlines()
     # get a data structure
-    ds = qcio.DataStructure()
+    ds = pfp_io.DataStructure()
     # get the site latitude, longitude and altitude
     ds.globalattributes["altitude"] = float(content[0][46:51])
     ds.globalattributes["latitude"] = float(content[0][28:34])/float(1000)
@@ -501,9 +501,9 @@ def read_isd_file(isd_file_path):
     # deal with the datetime first
     variable = {"Label":"DateTime", "Data":numpy.array(isd["DateTime"]["Data"]),
                 "Flag":f0, "Attr":isd["DateTime"]["Attr"]}
-    qcutils.CreateVariable(ds, variable)
+    pfp_utils.CreateVariable(ds, variable)
     # get the nominal time step
-    dt_delta = qcutils.get_timestep(ds)
+    dt_delta = pfp_utils.get_timestep(ds)
     ts = scipy.stats.mode(dt_delta)[0]/60
     ds.globalattributes["time_step"] = ts[0]
     # add the variables to the data structure
@@ -514,52 +514,52 @@ def read_isd_file(isd_file_path):
         flag = numpy.where(numpy.ma.getmaskarray(data) == True, f1, f0)
         attr = isd[label]["Attr"]
         variable = {"Label":label, "Data":data, "Flag":flag, "Attr":attr}
-        qcutils.CreateVariable(ds, variable)
+        pfp_utils.CreateVariable(ds, variable)
     # hPa to kPa
-    ps = qcutils.GetVariable(ds, "ps")
+    ps = pfp_utils.GetVariable(ds, "ps")
     ps["Data"] = ps["Data"]/float(10)
     # convert sea level pressure to station pressure
     site_altitude = float(ds.globalattributes["altitude"])
-    Ta = qcutils.GetVariable(ds, "Ta")
+    Ta = pfp_utils.GetVariable(ds, "Ta")
     cfac = numpy.ma.exp((-1*site_altitude)/((Ta["Data"]+273.15)*29.263))
     ps["Data"] = ps["Data"]*cfac
     ps["Attr"]["long_name"] = ps["Attr"]["long_name"]+", adjusted from sea level to station"
-    qcutils.CreateVariable(ds, ps)
+    pfp_utils.CreateVariable(ds, ps)
     # do precipitation and apply crude limits
-    Precip = qcutils.GetVariable(ds, "Precip")
+    Precip = pfp_utils.GetVariable(ds, "Precip")
     condition = (Precip["Data"]<0)|(Precip["Data"]>100)
     Precip["Data"] = numpy.ma.masked_where(condition, Precip["Data"])
     Precip["Flag"] = numpy.where(numpy.ma.getmaskarray(Precip["Data"])==True, f1, f0)
     Precip["Attr"]["RangeCheck_upper"] = 100
     Precip["Attr"]["RangeCheck_lower"] = 0
-    qcutils.CreateVariable(ds, Precip)
+    pfp_utils.CreateVariable(ds, Precip)
     # get the humidities from Td
-    Ta = qcutils.GetVariable(ds, "Ta")
-    Td = qcutils.GetVariable(ds, "Td")
-    ps = qcutils.GetVariable(ds, "ps")
+    Ta = pfp_utils.GetVariable(ds, "Ta")
+    Td = pfp_utils.GetVariable(ds, "Td")
+    ps = pfp_utils.GetVariable(ds, "ps")
     RH = mf.RHfromdewpoint(Td["Data"], Ta["Data"])
     flag = numpy.where(numpy.ma.getmaskarray(RH)==True, f1, f0)
     attr = {"long_name":"Relative humidity", "units":"%"}
     variable = {"Label":"RH", "Data":RH, "Flag":flag, "Attr":attr}
-    qcutils.CreateVariable(ds, variable)
+    pfp_utils.CreateVariable(ds, variable)
     Ah = mf.absolutehumidityfromRH(Ta["Data"], RH)
     flag = numpy.where(numpy.ma.getmaskarray(Ah)==True, f1, f0)
     attr = {"long_name":"Absolute humidity", "units":"g/m3"}
     variable = {"Label":"Ah", "Data":Ah, "Flag":flag, "Attr":attr}
-    qcutils.CreateVariable(ds, variable)
+    pfp_utils.CreateVariable(ds, variable)
     q = mf.specifichumidityfromRH(RH, Ta["Data"], ps["Data"])
     flag = numpy.where(numpy.ma.getmaskarray(q)==True, f1, f0)
     attr = {"long_name":"Specific humidity", "units":"kg/kg"}
     variable = {"Label":"q", "Data":q, "Flag":flag, "Attr":attr}
-    qcutils.CreateVariable(ds, variable)
+    pfp_utils.CreateVariable(ds, variable)
     # get U and V components from wind speed and direction
-    Ws = qcutils.GetVariable(ds, "Ws")
-    Wd = qcutils.GetVariable(ds, "Wd")
-    U, V = qcutils.convert_WSWDtoUV(Ws, Wd)
-    qcutils.CreateVariable(ds, U)
-    qcutils.CreateVariable(ds, V)
+    Ws = pfp_utils.GetVariable(ds, "Ws")
+    Wd = pfp_utils.GetVariable(ds, "Wd")
+    U, V = pfp_utils.convert_WSWDtoUV(Ws, Wd)
+    pfp_utils.CreateVariable(ds, U)
+    pfp_utils.CreateVariable(ds, V)
     # add the time variable
-    qcutils.get_nctime_from_datetime(ds)
+    pfp_utils.get_nctime_from_datetime(ds)
     # return the data
     return ds
 
@@ -603,7 +603,7 @@ def xl_write_ISD_timesteps(xl_file_path, data):
       data[site][year]["stdev"]
       data[site][year]["mode"]
     Usage:
-     qcio.xl_write_ISD_timesteps(xl_file_path, data)
+     pfp_io.xl_write_ISD_timesteps(xl_file_path, data)
       where xl_file_path is an Excel workbook file name
             data         is a dictionary as defined above
     Side effects:
@@ -640,7 +640,7 @@ def xl_write_ISD_timesteps(xl_file_path, data):
     return
 
 # read the control file file
-cf = qcio.load_controlfile(path='../controlfiles')
+cf = pfp_io.load_controlfile(path='../controlfiles')
 xl_file_path = cf["Files"]["xl_file_path"]
 xl_sheet_name = cf["Files"]["xl_sheet_name"]
 isd_base_path = cf["Files"]["isd_base_path"]
@@ -702,9 +702,9 @@ for site in site_list:
             if not os.path.isfile(isd_file_path):
                 continue
             ds_in = read_isd_file(isd_file_path)
-            qcutils.CheckQCFlags(ds_in)
+            pfp_utils.CheckQCFlags(ds_in)
             # get an array of time steps in seconds
-            dt = qcutils.get_timestep(ds_in)
+            dt = pfp_utils.get_timestep(ds_in)
             # and get dt in minutes
             dt = dt/float(60)
             isd_time_steps[isd_site][year]["mean"] = numpy.mean(dt)
@@ -712,13 +712,13 @@ for site in site_list:
             isd_time_steps[isd_site][year]["mode"] = scipy.stats.mode(dt)[0][0]
             # average records with the same time stamp
             ds_avg = average_duplicate_times(ds_in, time_step)
-            qcutils.CheckQCFlags(ds_avg)
+            pfp_utils.CheckQCFlags(ds_avg)
             # interpolate from the ISD site time step to the tower time step
             ds_int = interpolate_ds(ds_avg, time_step)
-            qcutils.CheckQCFlags(ds_int)
+            pfp_utils.CheckQCFlags(ds_int)
             # mask long gaps
             ds_mlg = mask_long_gaps(ds_int, ds_avg, max_interp_length)
-            qcutils.CheckQCFlags(ds_mlg)
+            pfp_utils.CheckQCFlags(ds_mlg)
             # adjust time from UTC to local using the time zone
             convert_time_zone(ds_mlg, "UTC", time_zone)
             # put the data for this site into the all sites data structure
@@ -732,11 +732,11 @@ for site in site_list:
             #if not os.path.exists(nc_dir_path):
                 #os.makedirs(nc_dir_path)
             #nc_file_path = os.path.join(nc_dir_path,nc_file_name)
-            #nc_file = qcio.nc_open_write(nc_file_path)
-            #qcio.nc_write_series(nc_file, ds_out[site_index[isd_site]], ndims=1)
+            #nc_file = pfp_io.nc_open_write(nc_file_path)
+            #pfp_io.nc_write_series(nc_file, ds_out[site_index[isd_site]], ndims=1)
         # now we merge the data structures for each ISD station into a single data structure
         # first, instance a data structure
-        ds_all = qcio.DataStructure()
+        ds_all = pfp_io.DataStructure()
         ds_all.globalattributes["latitude"] = site_info[site]["Latitude"]
         ds_all.globalattributes["longitude"] = site_info[site]["Longitude"]
         ds_all.globalattributes["altitude"] = site_info[site]["Altitude"]
@@ -787,10 +787,10 @@ for site in site_list:
             # and then we loop over the variables to be copied
             for label in labels:
                 # read the data out of the ISD site data structure
-                var_out = qcutils.GetVariable(ds_out[i], label)
+                var_out = pfp_utils.GetVariable(ds_out[i], label)
                 # create an empty output variable with a number, unique to each ISD station,
                 # appended to the label
-                var_all = qcutils.create_empty_variable(label+"_"+str(i), nrecs)
+                var_all = pfp_utils.create_empty_variable(label+"_"+str(i), nrecs)
                 # copy the variable attributes
                 var_all["Attr"] = copy.deepcopy(var_out["Attr"])
                 # add the ISD site ID
@@ -799,7 +799,7 @@ for site in site_list:
                 var_all["Data"][idx] = var_out["Data"]
                 var_all["Flag"][idx] = var_out["Flag"]
                 # put the data, flag and attributes into the all-in-one data structure
-                qcutils.CreateVariable(ds_all, var_all)
+                pfp_utils.CreateVariable(ds_all, var_all)
         # write the netCDF file with the combined data for this year
         if len(fluxnet_id) == 0:
             nc_dir_path = os.path.join(out_base_path,site,"Data","ISD")
@@ -810,13 +810,13 @@ for site in site_list:
         if not os.path.exists(nc_dir_path):
             os.makedirs(nc_dir_path)
         nc_file_path = os.path.join(nc_dir_path,nc_file_name)
-        nc_file = qcio.nc_open_write(nc_file_path)
-        qcio.nc_write_series(nc_file, ds_all, ndims=1)
+        nc_file = pfp_io.nc_open_write(nc_file_path)
+        pfp_io.nc_write_series(nc_file, ds_all, ndims=1)
         cf_concat["Files"]["In"][str(n)] = nc_file_path
     # concatenate the yearly files for this site
     #cf_concat.filename = "../controlfiles/ISD/concat.txt"
     #cf_concat.write()
-    qcio.nc_concatenate(cf_concat)
+    pfp_io.nc_concatenate(cf_concat)
 
 # write the time steps out to an Excel file
 xl_file_path = os.path.join(isd_base_path, "ISD_site_timesteps.xls")
