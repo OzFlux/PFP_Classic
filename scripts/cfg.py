@@ -1,5 +1,6 @@
 version_name = "PyFluxPro"
-version_number = "V0.1.6"
+version_number = "V0.1.7"
+# V0.1.7 - implemented ECOSTRESS output
 # V0.1.6 - fixed bug in pfp_ck.do_li7500check()
 #          - bug caused by use of irga_dependents in final
 #            loop instead of irga_list
