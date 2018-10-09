@@ -147,6 +147,7 @@ class qcgui(tk.Tk):
         fileconvertmenu = tk.Menu(menubar,tearoff=0)
         #fileconvertmenu.add_command(label="V2.7 to V2.8",command=self.do_v27tov28)
         fileconvertmenu.add_command(label="nc to EddyPro (biomet)",command=self.do_nc2ep_biomet)
+        fileconvertmenu.add_command(label="nc to ECOSTRESS",command=self.do_nc2csv_ecostress)
         fileconvertmenu.add_command(label="nc to FluxNet",command=self.do_nc2fn)
         fileconvertmenu.add_command(label="nc to REddyProc",command=self.do_nc2reddyproc)
         fileconvertmenu.add_command(label="nc to SMAP",command=self.do_nc2smap)
@@ -705,6 +706,45 @@ class qcgui(tk.Tk):
         self.do_progress(text='Converting nc to EddyPro biomet CSV ...')
         return_code = pfp_io.ep_biomet_write_csv(cf)
         if return_code==0:
+            self.do_progress(text='An error occurred, check the console ...')
+            return
+        else:
+            logger.info(' Finished conversion to EddyPro biomet format')
+            self.do_progress(text='Finished conversion to EddyPro biomet format')
+            logger.info("")
+
+    def do_nc2csv_ecostress(self, mode="standard"):
+        """ Calls pfp_io.write_csv_ecostress. """
+        logger.info(' Starting conversion to ECOSTRESS file')
+        if mode == "standard":
+            stdname = "controlfiles/standard/nc2csv_ecostress.txt"
+            if os.path.exists(stdname):
+                cf = pfp_io.get_controlfilecontents(stdname)
+                filename = pfp_io.get_filename_dialog(path='../Sites',title='Choose a netCDF file')
+                if len(filename) == 0 or not os.path.exists(filename):
+                    self.do_progress(text='Waiting for input ...')
+                    return
+                if "Files" not in dir(cf):
+                    cf["Files"] = {}
+                cf["Files"]["file_path"] = ntpath.split(filename)[0]+"/"
+                cf["Files"]["in_filename"] = ntpath.split(filename)[1]
+            else:
+                self.do_progress(text='Loading control file ...')
+                cf = pfp_io.load_controlfile(path='controlfiles')
+                if len(cf) == 0:
+                    self.do_progress(text='Waiting for input ...')
+                    return
+        else:
+            self.do_progress(text='Loading control file ...')
+            cf = pfp_io.load_controlfile(path='controlfiles')
+            if len(cf) == 0:
+                self.do_progress(text='Waiting for input ...')
+                return
+        if "Options" not in cf:
+            cf["Options"]={}
+        cf["Options"]["call_mode"] = "interactive"
+        return_code = pfp_io.write_csv_ecostress(cf)
+        if return_code == 0:
             self.do_progress(text='An error occurred, check the console ...')
             return
         else:
