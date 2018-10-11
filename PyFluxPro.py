@@ -716,41 +716,22 @@ class qcgui(tk.Tk):
     def do_nc2csv_ecostress(self, mode="standard"):
         """ Calls pfp_io.write_csv_ecostress. """
         logger.info(' Starting conversion to ECOSTRESS file')
-        if mode == "standard":
-            stdname = "controlfiles/standard/nc2csv_ecostress.txt"
-            if os.path.exists(stdname):
-                cf = pfp_io.get_controlfilecontents(stdname)
-                filename = pfp_io.get_filename_dialog(path='../Sites',title='Choose a netCDF file')
-                if len(filename) == 0 or not os.path.exists(filename):
-                    self.do_progress(text='Waiting for input ...')
-                    return
-                if "Files" not in dir(cf):
-                    cf["Files"] = {}
-                cf["Files"]["file_path"] = ntpath.split(filename)[0]+"/"
-                cf["Files"]["in_filename"] = ntpath.split(filename)[1]
-            else:
-                self.do_progress(text='Loading control file ...')
-                cf = pfp_io.load_controlfile(path='controlfiles')
-                if len(cf) == 0:
-                    self.do_progress(text='Waiting for input ...')
-                    return
-        else:
-            self.do_progress(text='Loading control file ...')
-            cf = pfp_io.load_controlfile(path='controlfiles')
-            if len(cf) == 0:
-                self.do_progress(text='Waiting for input ...')
-                return
+        self.do_progress(text='Loading control file ...')
+        cf = pfp_io.load_controlfile(path='controlfiles')
+        if len(cf) == 0:
+            self.do_progress(text='Waiting for input ...')
+            return
         if "Options" not in cf:
             cf["Options"]={}
         cf["Options"]["call_mode"] = "interactive"
         return_code = pfp_io.write_csv_ecostress(cf)
         if return_code == 0:
-            self.do_progress(text='An error occurred, check the console ...')
-            return
-        else:
-            logger.info(' Finished conversion to EddyPro biomet format')
-            self.do_progress(text='Finished conversion to EddyPro biomet format')
+            logger.info(' Finished conversion to ECOSTRESS format')
+            self.do_progress(text='Finished conversion to ECOSTRESS format')
             logger.info("")
+        else:
+            self.do_progress(text='An error occurred, check the console ...')
+        return
 
     def do_nc2fn(self):
         """ Calls pfp_io.fn_write_csv. """
