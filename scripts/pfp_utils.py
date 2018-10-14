@@ -715,6 +715,8 @@ def convert_anglestring(anglestring):
                 # make sure we have 3 parts
                 new.extend([0,0,0])
                 anglefloat = (float(new[0])+float(new[1])/60.0+float(new[2])/3600.0) * direction[new_dir]
+            else:
+                anglefloat = float(c.missing_value)
         except:
             anglefloat = float(c.missing_value)
     # return with the string converted to a float
