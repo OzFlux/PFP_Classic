@@ -686,31 +686,39 @@ def convert_anglestring(anglestring):
       astr = '''34.123 S'''
       astr = '''-34.123'''
     """
-    quadlist=["N","E","S","W"]
+    quadlist = ["N", "E", "S", "W"]
     direction = {'N':1, 'S':-1, 'E': 1, 'W':-1}
+    # replace the degrees, minutes and seconds symbols with spaces
+    new = anglestring.replace(u'\B0', ' ').replace('\'', ' ').replace('"', ' ').strip()
     try:
         # simple casting may work, who knows?
-        return float(anglestring)
+        anglefloat = float(new)
     except ValueError:
-        # replace the degrees, minutes and seconds symbols with spaces
-        new = anglestring.replace(u'\B0',' ').replace('\'',' ').replace('"',' ')
-        # check there is a space between the quadrant letter (assumed to be one of N, E, W or S)
-        # and the next character to the left
-        # find out which of N, E, S, or W is in the string
-        for item in quadlist:
-            if item in new: quadletter=item
-        # now get the index of this character in the string
-        i=new.index(quadletter)
-        # check that the next character to the left is a space character
-        if new[i-1] != " ": new = new[0:i]+" "+new[i:]
-        # now split the string on space characters
-        new = new.split()
-        # get the quadrant letter
-        new_dir = new.pop()
-        # make sure we have 3 parts
-        new.extend([0,0,0])
-        # return with the string converted to a float
-        return (float(new[0])+float(new[1])/60.0+float(new[2])/3600.0) * direction[new_dir]
+        try:
+            # check there is a space between the quadrant letter (assumed to be one of N, E, W or S)
+            # and the next character to the left
+            # find out which of N, E, S, or W is in the string
+            found_quadletter = False
+            for item in quadlist:
+                if item in new:
+                    found_quadletter = True
+                    quadletter = item
+            if found_quadletter:
+                # now get the index of this character in the string
+                i=new.index(quadletter)
+                # check that the next character to the left is a space character
+                if new[i-1] != " ": new = new[0:i]+" "+new[i:]
+                # now split the string on space characters
+                new = new.split()
+                # get the quadrant letter
+                new_dir = new.pop()
+                # make sure we have 3 parts
+                new.extend([0,0,0])
+                anglefloat = (float(new[0])+float(new[1])/60.0+float(new[2])/3600.0) * direction[new_dir]
+        except:
+            anglefloat = float(c.missing_value)
+    # return with the string converted to a float
+    return anglefloat
 
 def convert_WSWDtoUV(WS, WD):
     """
