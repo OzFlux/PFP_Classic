@@ -1236,8 +1236,6 @@ def L6_summary_plotdaily(cf, ds, daily_dict):
 
 def L6_summary_plotcumulative(cf, ds, cumulative_dict):
     ts = int(ds.globalattributes["time_step"])
-    #max_points = int(366*24*float(60)/ts)
-    max_points = int(366*24)
     # cumulative plots
     color_list = ["blue","red","green","yellow","magenta","black","cyan","brown"]
     year_list = cumulative_dict.keys()
