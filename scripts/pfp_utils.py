@@ -686,31 +686,41 @@ def convert_anglestring(anglestring):
       astr = '''34.123 S'''
       astr = '''-34.123'''
     """
-    quadlist=["N","E","S","W"]
+    quadlist = ["N", "E", "S", "W"]
     direction = {'N':1, 'S':-1, 'E': 1, 'W':-1}
+    # replace the degrees, minutes and seconds symbols with spaces
+    new = anglestring.replace(u'\B0', ' ').replace('\'', ' ').replace('"', ' ').strip()
     try:
         # simple casting may work, who knows?
-        return float(anglestring)
+        anglefloat = float(new)
     except ValueError:
-        # replace the degrees, minutes and seconds symbols with spaces
-        new = anglestring.replace(u'\B0',' ').replace('\'',' ').replace('"',' ')
-        # check there is a space between the quadrant letter (assumed to be one of N, E, W or S)
-        # and the next character to the left
-        # find out which of N, E, S, or W is in the string
-        for item in quadlist:
-            if item in new: quadletter=item
-        # now get the index of this character in the string
-        i=new.index(quadletter)
-        # check that the next character to the left is a space character
-        if new[i-1] != " ": new = new[0:i]+" "+new[i:]
-        # now split the string on space characters
-        new = new.split()
-        # get the quadrant letter
-        new_dir = new.pop()
-        # make sure we have 3 parts
-        new.extend([0,0,0])
-        # return with the string converted to a float
-        return (float(new[0])+float(new[1])/60.0+float(new[2])/3600.0) * direction[new_dir]
+        try:
+            # check there is a space between the quadrant letter (assumed to be one of N, E, W or S)
+            # and the next character to the left
+            # find out which of N, E, S, or W is in the string
+            found_quadletter = False
+            for item in quadlist:
+                if item in new:
+                    found_quadletter = True
+                    quadletter = item
+            if found_quadletter:
+                # now get the index of this character in the string
+                i=new.index(quadletter)
+                # check that the next character to the left is a space character
+                if new[i-1] != " ": new = new[0:i]+" "+new[i:]
+                # now split the string on space characters
+                new = new.split()
+                # get the quadrant letter
+                new_dir = new.pop()
+                # make sure we have 3 parts
+                new.extend([0,0,0])
+                anglefloat = (float(new[0])+float(new[1])/60.0+float(new[2])/3600.0) * direction[new_dir]
+            else:
+                anglefloat = float(c.missing_value)
+        except:
+            anglefloat = float(c.missing_value)
+    # return with the string converted to a float
+    return anglefloat
 
 def convert_WSWDtoUV(WS, WD):
     """
@@ -1679,31 +1689,25 @@ def get_datetimefromymdhms(ds):
     ''' Creates a series of Python datetime objects from the year, month,
     day, hour, minute and second series stored in the netCDF file.'''
     SeriesList = ds.series.keys()
-    if 'Year' not in SeriesList or 'Month' not in SeriesList or 'Day' not in SeriesList or 'Hour' not in SeriesList or 'Minute' not in SeriesList or 'Second' not in SeriesList:
+    if ('Year' not in SeriesList or 'Month' not in SeriesList or 'Day' not in SeriesList or
+        'Hour' not in SeriesList or 'Minute' not in SeriesList or 'Second' not in SeriesList):
         logger.info(' get_datetimefromymdhms: unable to find all datetime fields required')
         return
     logger.info(' Getting the date and time series')
-    nRecs = get_nrecs(ds)
-    ts = ds.globalattributes["time_step"]
-    ds.series[unicode('DateTime')] = {}
-    dt = [None]*nRecs
-    if "Microseconds" in ds.series.keys():
-        microseconds = ds.series["Microseconds"]["Data"]
-    else:
-        microseconds = numpy.zeros(nRecs,dtype=numpy.float64)
-    for i in range(nRecs):
-        dt = datetime.datetime(int(ds.series['Year']['Data'][i]),
-                                int(ds.series['Month']['Data'][i]),
-                                int(ds.series['Day']['Data'][i]),
-                                int(ds.series['Hour']['Data'][i]),
-                                int(ds.series['Minute']['Data'][i]),
-                                int(ds.series['Second']['Data'][i]),
-                                int(microseconds[i]))
-    ds.series['DateTime']['Data'] = numpy.array(dt)
-    ds.series['DateTime']['Flag'] = numpy.zeros(nRecs)
-    ds.series['DateTime']['Attr'] = {}
-    ds.series['DateTime']['Attr']['long_name'] = 'Date-time object'
-    ds.series['DateTime']['Attr']['units'] = 'None'
+    year = ds.series["Year"]["Data"]
+    month = ds.series["Month"]["Data"]
+    day = ds.series["Day"]["Data"]
+    hour = ds.series["Hour"]["Data"]
+    minute = ds.series["Minute"]["Data"]
+    second = ds.series["Second"]["Data"]
+    dt = [datetime.datetime(yr,mn,dy,hr,mi,se) for yr,mn,dy,hr,mi,se in zip(year,month,day,hour,minute,second)]
+    ds.series["DateTime"] = {}
+    ds.series["DateTime"]["Data"] = numpy.array(dt)
+    ds.series["DateTime"]["Flag"] = numpy.zeros(len(dt))
+    ds.series["DateTime"]["Attr"] = {}
+    ds.series["DateTime"]["Attr"]["long_name"] = "Datetime in local timezone"
+    ds.series["DateTime"]["Attr"]["units"] = "None"
+    return
 
 def get_diurnalstats(dt,data,info):
     ts = info["time_step"]

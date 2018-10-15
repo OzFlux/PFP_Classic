@@ -27,9 +27,14 @@ if len(sys.argv)==1:
 
 if sys.argv[1].lower()=="australia":
     erai_info["area"] = "-10/110/-45/155"
-    target_directory = "/home/peter/OzFlux/ERAI/"
+    target_directory = "/run/media/cilli/3637-3538/Data/OzFlux/"
     start_date = "2017-01-01"
-    end_date = "2017-08-30"
+    end_date = "2017-12-31"
+elif sys.argv[1].lower()=="nz":
+    erai_info["area"] = "-30/165/-50/180"
+    target_directory = "/run/media/cilli/cillidata/cilli/1_Work/1_OzFlux/Sites/ERAI/NZ/"
+    start_date = "2017-01-01"
+    end_date = "2017-12-31"
 elif sys.argv[1].lower()=="usa":
     erai_info["area"] = "70/229.5/30/300"
     target_directory = "/home/peter/AmeriFlux/ERAI/"
