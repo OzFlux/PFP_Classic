@@ -2211,7 +2211,7 @@ def InvertSign(ds,ThisOne):
     index = numpy.where(abs(ds.series[ThisOne]['Data']-float(c.missing_value))>c.eps)[0]
     ds.series[ThisOne]['Data'][index] = float(-1)*ds.series[ThisOne]['Data'][index]
 
-def InterpolateOverMissing(ds,series='',maxlen=0):
+def InterpolateOverMissing(ds, series='', maxlen=0, int_type="linear"):
     """
     Purpose:
      Interpolate over periods of missing data.  Uses linear interpolation.
@@ -2245,10 +2245,20 @@ def InterpolateOverMissing(ds,series='',maxlen=0):
     if len(iog)<2:
         logger.info(' InterpolateOverMissing: Less than 2 good points available for series '+str(series))
         return
-    # linear interpolation function
-    f = interpolate.interp1d(DateNum[iog],data_org[iog],bounds_error=False,fill_value=float(c.missing_value))
-    # interpolate over the whole time series
-    data_int = f(DateNum).astype(numpy.float64)
+    if int_type == "linear":
+        # linear interpolation function
+        f = interpolate.interp1d(DateNum[iog],data_org[iog],bounds_error=False,fill_value=float(c.missing_value))
+        # interpolate over the whole time series
+        data_int = f(DateNum).astype(numpy.float64)
+    elif int_type == "Akima":
+        int_fn = interpolate.Akima1DInterpolator(DateNum[iog], data_org[iog])
+        data_int = int_fn(DateNum)
+        # trap non-finite values from the Akima 1D interpolator
+        data_int = numpy.where(numpy.isfinite(data_int) == True, data_int, numpy.float(c.missing_value))
+    else:
+        msg = " Unrecognised interpolator option (" + int_type + "), skipping ..."
+        logger.error(msg)
+        return
     # copy the original flag
     flag_int = numpy.copy(flag_org)
     # index of interpolates that are not equal to the missing value
@@ -2276,8 +2286,6 @@ def InterpolateOverMissing(ds,series='',maxlen=0):
     # put data_int back into the data structure
     attr_int = dict(attr_org)
     pfp_utils.CreateSeries(ds,series,data_int,flag_int,attr_int)
-    if 'InterpolateOverMissing2' not in ds.globalattributes['Functions']:
-        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', InterpolateOverMissing2'
 
 def MassmanStandard(cf,ds,Ta_in='Ta',Ah_in='Ah',ps_in='ps',ustar_in='ustar',ustar_out='ustar',L_in='L',L_out ='L',uw_out='uw',vw_out='vw',wT_out='wT',wA_out='wA',wC_out='wC'):
     """
