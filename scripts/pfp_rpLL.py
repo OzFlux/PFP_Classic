@@ -1,11 +1,15 @@
+# standard modules
 import ast
-import constants as c
 import datetime
 import logging
+import warnings
+# 3rd party modules
 import matplotlib.pyplot as plt
 import numpy
-import pfp_utils
 from scipy.optimize import curve_fit
+# PFP modules
+import constants as c
+import pfp_utils
 
 logger = logging.getLogger("pfp_log")
 

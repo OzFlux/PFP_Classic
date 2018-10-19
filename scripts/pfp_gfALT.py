@@ -262,9 +262,9 @@ def gfalternate_autocomplete(ds_tower,ds_alt,alternate_info,mode="verbose"):
                 gap[1] = min(nRecs_gui-1,gap[1] + alternate_info["nperday"])
                 if gap[0]==0 and gap[1]==nRecs_gui-1:
                     msg = " Unable to find enough good points in data set for "+label_tower
-                    logger.error(msg)
+                    logger.warning(msg)
                     msg = " Replacing missing tower data with unmodified alternate data"
-                    logger.error(msg)
+                    logger.warning(msg)
                     gap[0] = 0; gap[1] = -1
                     alternate_info["autoforce"] = True
                     not_enough_points = True
@@ -549,7 +549,7 @@ def gfalternate_getlagcorrecteddata(ds_alternate, data_dict, stat_dict, alternat
         _, corr = pfp_ts.get_laggedcorrelation(data_tower, data_alternate, maxlags)
         nLags = numpy.argmax(corr) - alternate_info["max_lags"]
         if nLags > alternate_info["nperhr"]*6:
-            logger.error("getlagcorrecteddata: lag is more than 6 hours for %s", label_tower)
+            logger.warning("getlagcorrecteddata: lag is more than 6 hours for %s", label_tower)
         si_alternate = si_alternate - nLags
         ei_alternate = ei_alternate - nLags
         data_alternate, _, _ = pfp_utils.GetSeriesasMA(ds_alternate, label_alternate, si=si_alternate, ei=ei_alternate, mode="mirror")
@@ -1147,6 +1147,7 @@ def gfalternate_plotcoveragelines(ds_tower):
     #fig.canvas.manager.window.attributes('-topmost', 1)
     plt.draw()
     plt.ioff()
+    return
 
 def gfalternate_plotsummary(ds,alternate_info):
     """ Plot single pages of summary results for groups of variables. """

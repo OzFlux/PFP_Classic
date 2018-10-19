@@ -2286,6 +2286,7 @@ def InterpolateOverMissing(ds, series='', maxlen=0, int_type="linear"):
     # put data_int back into the data structure
     attr_int = dict(attr_org)
     pfp_utils.CreateSeries(ds,series,data_int,flag_int,attr_int)
+    return
 
 def MassmanStandard(cf,ds,Ta_in='Ta',Ah_in='Ah',ps_in='ps',ustar_in='ustar',ustar_out='ustar',L_in='L',L_out ='L',uw_out='uw',vw_out='vw',wT_out='wT',wA_out='wA',wC_out='wC'):
     """

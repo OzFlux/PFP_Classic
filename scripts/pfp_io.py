@@ -1657,7 +1657,7 @@ def ncsplit_progress(split_gui,text):
     split_gui.progress.grid(row=9,column=0,columnspan=6,sticky="W")
     split_gui.update()
 
-def nc_read_series(ncFullName,checktimestep=True,fixtimestepmethod=""):
+def nc_read_series(ncFullName,checktimestep=True,fixtimestepmethod="round"):
     """
     Purpose:
      Reads a netCDF file and returns the meta-data and data in a DataStructure.

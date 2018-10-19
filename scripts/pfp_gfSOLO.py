@@ -200,7 +200,7 @@ def gfSOLO_autocomplete(dsa, dsb, solo_info):
                 ei_gap = min([nRecs-1, ei_gap + solo_info["nperday"]])
                 if si_gap == 0 and ei_gap == nRecs-1:
                     msg = " Unable to find enough good points in series "+series
-                    logger.error(msg)
+                    logger.warning(msg)
                     not_enough_points = True
                 if not_enough_points:
                     break

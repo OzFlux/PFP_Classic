@@ -36,6 +36,11 @@ level_list = ['L1','L2','L3','concatenate','climatology','cpd','L4','L5','L6']
 if "Options" in cf_batch:
     if "levels" in cf_batch["Options"]: level_list = ast.literal_eval(cf_batch["Options"]["levels"])
 for level in level_list:
+    if level.lower() not in ["l1", "l2", "l3",
+                             "ecostress", "fluxnet", "reddyproc", "concatenate", "climatology", "cpd",
+                             "l4", "l5", "l6"]:
+        logger.warning("Unrecognised level "+level)
+        continue
     if level.lower()=="l1":
         # L1 processing
         for i in cf_batch["Levels"][level].keys():
@@ -79,6 +84,16 @@ for level in level_list:
             ncFile = pfp_io.nc_open_write(outfilename)
             pfp_io.nc_write_series(ncFile,ds3,outputlist=outputlist)
             logger.info('Finished L3 processing with '+cf_file_name[1])
+            logger.info('')
+    elif level.lower()=="ecostress":
+        # convert netCDF files to ECOSTRESS CSV files
+        for i in cf_batch["Levels"][level].keys():
+            cfname = cf_batch["Levels"][level][i]
+            cf_file_name = os.path.split(cfname)
+            logger.info('Starting ECOSTRESS output with '+cf_file_name[1])
+            cf = pfp_io.get_controlfilecontents(cfname)
+            pfp_io.write_csv_ecostress(cf)
+            logger.info('Finished ECOSTRESS output with '+cf_file_name[1])
             logger.info('')
     elif level.lower()=="fluxnet":
         # convert netCDF files to FluxNet CSV files
@@ -171,33 +186,43 @@ for level in level_list:
                 continue
             cf_file_name = os.path.split(cfname)
             logger.info('Starting L4 processing with '+cf_file_name[1])
-            cf_l4 = pfp_io.get_controlfilecontents(cfname)
-            if "Options" not in cf_l4: cf_l4["Options"]={}
-            cf_l4["Options"]["call_mode"] = "batch"
-            cf_l4["Options"]["show_plots"] = False
-            infilename = pfp_io.get_infilenamefromcf(cf_l4)
-            ds3 = pfp_io.nc_read_series(infilename)
-            ds4 = pfp_ls.l4qc(cf_l4,ds3)
-            outfilename = pfp_io.get_outfilenamefromcf(cf_l4)
-            outputlist = pfp_io.get_outputlistfromcf(cf_l4,'nc')
-            ncFile = pfp_io.nc_open_write(outfilename)
-            pfp_io.nc_write_series(ncFile,ds4,outputlist=outputlist)
-            logger.info('Finished L4 processing with '+cf_file_name[1])
-            # now plot the fingerprints for the L4 files
-            cf_fp = pfp_io.get_controlfilecontents("controlfiles/standard/fingerprint.txt")
-            if "Files" not in dir(cf_fp): cf_fp["Files"] = {}
-            file_name = pfp_io.get_outfilenamefromcf(cf_l4)
-            file_path = ntpath.split(file_name)[0]+"/"
-            cf_fp["Files"]["file_path"] = file_path
-            cf_fp["Files"]["in_filename"] = ntpath.split(file_name)[1]
-            cf_fp["Files"]["plot_path"] = file_path[:file_path.index("Data")]+"Plots/"
-            if "Options" not in cf_fp: cf_fp["Options"]={}
-            cf_fp["Options"]["call_mode"] = "batch"
-            cf_fp["Options"]["show_plots"] = "no"
-            logger.info('Doing fingerprint plots using '+cf_fp["Files"]["in_filename"])
-            pfp_plot.plot_fingerprint(cf_fp)
-            logger.info('Finished fingerprint plots')
-            logger.info('')
+            try:
+                cf_l4 = pfp_io.get_controlfilecontents(cfname)
+                if "Options" not in cf_l4:
+                    cf_l4["Options"]={}
+                cf_l4["Options"]["call_mode"] = "batch"
+                cf_l4["Options"]["show_plots"] = False
+                infilename = pfp_io.get_infilenamefromcf(cf_l4)
+                ds3 = pfp_io.nc_read_series(infilename)
+                ds4 = pfp_ls.l4qc(cf_l4, ds3)
+                outfilename = pfp_io.get_outfilenamefromcf(cf_l4)
+                outputlist = pfp_io.get_outputlistfromcf(cf_l4, 'nc')
+                ncFile = pfp_io.nc_open_write(outfilename)
+                pfp_io.nc_write_series(ncFile, ds4, outputlist=outputlist)
+                logger.info('Finished L4 processing with '+cf_file_name[1])
+                # now plot the fingerprints for the L4 files
+                cf_fp = pfp_io.get_controlfilecontents("controlfiles/standard/fingerprint.txt")
+                if "Files" not in dir(cf_fp):
+                    cf_fp["Files"] = {}
+                file_name = pfp_io.get_outfilenamefromcf(cf_l4)
+                file_path = ntpath.split(file_name)[0]+"/"
+                cf_fp["Files"]["file_path"] = file_path
+                cf_fp["Files"]["in_filename"] = ntpath.split(file_name)[1]
+                if "plot_path" in cf_l4["Files"]:
+                    cf_fp["Files"]["plot_path"] = cf_l4["Files"]["plot_path"]
+                else:
+                    cf_fp["Files"]["plot_path"] = file_path[:file_path.index("Data")]+"Plots/"
+                if "Options" not in cf_fp: cf_fp["Options"]={}
+                cf_fp["Options"]["call_mode"] = "batch"
+                cf_fp["Options"]["show_plots"] = "no"
+                logger.info('Doing fingerprint plots using '+cf_fp["Files"]["in_filename"])
+                pfp_plot.plot_fingerprint(cf_fp)
+                logger.info('Finished fingerprint plots')
+                logger.info('')
+            except:
+                msg = "Error occurred during L4 with "+cf_file_name[1]
+                logger.error(msg)
+                continue
     elif level.lower()=="l5":
         # L5 processing
         for i in cf_batch["Levels"][level].keys():
@@ -208,33 +233,41 @@ for level in level_list:
                 continue
             cf_file_name = os.path.split(cfname)
             logger.info('Starting L5 processing with '+cf_file_name[1])
-            cf_l5 = pfp_io.get_controlfilecontents(cfname)
-            if "Options" not in cf_l5: cf_l5["Options"]={}
-            cf_l5["Options"]["call_mode"] = "batch"
-            cf_l5["Options"]["show_plots"] = False
-            infilename = pfp_io.get_infilenamefromcf(cf_l5)
-            ds4 = pfp_io.nc_read_series(infilename)
-            ds5 = pfp_ls.l5qc(cf_l5,ds4)
-            outfilename = pfp_io.get_outfilenamefromcf(cf_l5)
-            outputlist = pfp_io.get_outputlistfromcf(cf_l5,'nc')
-            ncFile = pfp_io.nc_open_write(outfilename)
-            pfp_io.nc_write_series(ncFile,ds5,outputlist=outputlist)
-            logger.info('Finished L5 processing with '+cf_file_name[1])
-            # now plot the fingerprints for the L5 files
-            cf_fp = pfp_io.get_controlfilecontents("controlfiles/standard/fingerprint.txt")
-            if "Files" not in dir(cf_fp): cf_fp["Files"] = {}
-            file_name = pfp_io.get_outfilenamefromcf(cf_l5)
-            file_path = ntpath.split(file_name)[0]+"/"
-            cf_fp["Files"]["file_path"] = file_path
-            cf_fp["Files"]["in_filename"] = ntpath.split(file_name)[1]
-            cf_fp["Files"]["plot_path"] = file_path[:file_path.index("Data")]+"Plots/"
-            if "Options" not in cf_fp: cf_fp["Options"]={}
-            cf_fp["Options"]["call_mode"] = "batch"
-            cf_fp["Options"]["show_plots"] = "no"
-            logger.info('Doing fingerprint plots using '+cf_fp["Files"]["in_filename"])
-            pfp_plot.plot_fingerprint(cf_fp)
-            logger.info('Finished fingerprint plots')
-            logger.info('')
+            try:
+                cf_l5 = pfp_io.get_controlfilecontents(cfname)
+                if "Options" not in cf_l5: cf_l5["Options"]={}
+                cf_l5["Options"]["call_mode"] = "batch"
+                cf_l5["Options"]["show_plots"] = False
+                infilename = pfp_io.get_infilenamefromcf(cf_l5)
+                ds4 = pfp_io.nc_read_series(infilename)
+                ds5 = pfp_ls.l5qc(cf_l5,ds4)
+                outfilename = pfp_io.get_outfilenamefromcf(cf_l5)
+                outputlist = pfp_io.get_outputlistfromcf(cf_l5,'nc')
+                ncFile = pfp_io.nc_open_write(outfilename)
+                pfp_io.nc_write_series(ncFile,ds5,outputlist=outputlist)
+                logger.info('Finished L5 processing with '+cf_file_name[1])
+                # now plot the fingerprints for the L5 files
+                cf_fp = pfp_io.get_controlfilecontents("controlfiles/standard/fingerprint.txt")
+                if "Files" not in dir(cf_fp): cf_fp["Files"] = {}
+                file_name = pfp_io.get_outfilenamefromcf(cf_l5)
+                file_path = ntpath.split(file_name)[0]+"/"
+                cf_fp["Files"]["file_path"] = file_path
+                cf_fp["Files"]["in_filename"] = ntpath.split(file_name)[1]
+                if "plot_path" in cf_l5["Files"]:
+                    cf_fp["Files"]["plot_path"] = cf_l5["Files"]["plot_path"]
+                else:
+                    cf_fp["Files"]["plot_path"] = file_path[:file_path.index("Data")]+"Plots/"
+                if "Options" not in cf_fp: cf_fp["Options"]={}
+                cf_fp["Options"]["call_mode"] = "batch"
+                cf_fp["Options"]["show_plots"] = "no"
+                logger.info('Doing fingerprint plots using '+cf_fp["Files"]["in_filename"])
+                pfp_plot.plot_fingerprint(cf_fp)
+                logger.info('Finished fingerprint plots')
+                logger.info('')
+            except:
+                msg = "Error occurred during L5 with "+cf_file_name[1]
+                logger.error(msg)
+                continue
     elif level.lower()=="l6":
         # L6 processing
         for i in cf_batch["Levels"][level].keys():
