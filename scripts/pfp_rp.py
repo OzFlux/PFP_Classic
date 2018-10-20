@@ -1250,7 +1250,10 @@ def L6_summary_plotcumulative(cf, ds, cumulative_dict):
     # do the plots
     site_name = ds.globalattributes["site_name"]
     title_str = site_name+": "+year_list[0]+" to "+year_list[-1]
-    xlabel_list = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]
+    # get lists of X labels (letter of month) and position
+    xlabels = numpy.array(["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"])
+    nperday = int(24*float(60)/float(ts))
+    xlabel_posn = numpy.array([0,31, 59, 89, 120, 150, 181, 212, 242, 273, 303, 334])*nperday
     for item in type_list:
         if cf["Options"]["call_mode"].lower()=="interactive":
             plt.ion()
@@ -1264,60 +1267,63 @@ def L6_summary_plotcumulative(cf, ds, cumulative_dict):
         max_x = 0
         for n,year in enumerate(year_list):
             cdyv = cumulative_dict[year]["variables"]
-            x = numpy.arange(0,len(cdyv["NEE"+item]["data"]))*ts/float(60)
+            x = numpy.arange(0,len(cdyv["NEE"+item]["data"]))
             max_x = max([max_x, max(x)])
             plt.plot(x,cdyv["NEE"+item]["data"],color=color_list[numpy.mod(n,8)],
                      label=str(year))
         plt.xlim([0, max_x])
-        xlabel_posn = range(0, int(max_x), int(max_x/len(xlabel_list)))
-        pylab.xticks(xlabel_posn, xlabel_list)
+        idx = numpy.where(xlabel_posn <= max_x)[0]
+        pylab.xticks(xlabel_posn[idx], xlabels[idx])
         plt.xlabel("Month")
         plt.ylabel(cdyv["NEE"+item]["attr"]["units"])
         plt.legend(loc='lower left',prop={'size':8})
+
         plt.subplot(222)
         plt.title("GPP: "+item.replace("_",""),fontsize=12)
         max_x = 0
         for n,year in enumerate(year_list):
             cdyv = cumulative_dict[year]["variables"]
-            x = numpy.arange(0,len(cdyv["GPP"+item]["data"]))*ts/float(60)
+            x = numpy.arange(0,len(cdyv["GPP"+item]["data"]))
             max_x = max([max_x, max(x)])
             plt.plot(x,cdyv["GPP"+item]["data"],color=color_list[numpy.mod(n,8)],
                      label=str(year))
         plt.xlim([0, max_x])
-        xlabel_posn = range(0, int(max_x), int(max_x/len(xlabel_list)))
-        pylab.xticks(xlabel_posn, xlabel_list)
+        idx = numpy.where(xlabel_posn <= max_x)[0]
+        pylab.xticks(xlabel_posn[idx], xlabels[idx])
         plt.xlabel("Month")
         plt.ylabel(cdyv["GPP"+item]["attr"]["units"])
         plt.legend(loc='lower right',prop={'size':8})
+
         plt.subplot(223)
         plt.title("ER: "+item.replace("_",""),fontsize=12)
         max_x = 0
         for n,year in enumerate(year_list):
             cdyv = cumulative_dict[year]["variables"]
-            x = numpy.arange(0,len(cdyv["ER"+item]["data"]))*ts/float(60)
+            x = numpy.arange(0,len(cdyv["ER"+item]["data"]))
             max_x = max([max_x, max(x)])
             plt.plot(x,cdyv["ER"+item]["data"],color=color_list[numpy.mod(n,8)],
                      label=str(year))
         plt.xlim([0, max_x])
-        xlabel_posn = range(0, int(max_x), int(max_x/len(xlabel_list)))
-        pylab.xticks(xlabel_posn, xlabel_list)
+        idx = numpy.where(xlabel_posn <= max_x)[0]
+        pylab.xticks(xlabel_posn[idx], xlabels[idx])
         plt.xlabel("Month")
         plt.ylabel(cdyv["ER"+item]["attr"]["units"])
         plt.legend(loc='lower right',prop={'size':8})
+
         plt.subplot(224)
         plt.title("ET & Precip",fontsize=12)
         max_x = 0
         for n,year in enumerate(year_list):
             cdyv = cumulative_dict[year]["variables"]
-            x = numpy.arange(0,len(cdyv["ET"]["data"]))*ts/float(60)
+            x = numpy.arange(0,len(cdyv["ET"]["data"]))
             max_x = max([max_x, max(x)])
             plt.plot(x,cdyv["ET"]["data"],color=color_list[numpy.mod(n,8)],
                      label=str(year))
             plt.plot(x,cdyv["Precip"]["data"],color=color_list[numpy.mod(n,8)],
                      linestyle='--')
         plt.xlim([0, max_x])
-        xlabel_posn = range(0, int(max_x), int(max_x/len(xlabel_list)))
-        pylab.xticks(xlabel_posn, xlabel_list)
+        idx = numpy.where(xlabel_posn <= max_x)[0]
+        pylab.xticks(xlabel_posn[idx], xlabels[idx])
         plt.xlabel("Month")
         plt.ylabel(cdyv["ET"]["attr"]["units"])
         plt.legend(loc='upper left',prop={'size':8})

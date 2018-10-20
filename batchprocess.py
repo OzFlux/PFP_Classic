@@ -91,10 +91,15 @@ for level in level_list:
             cfname = cf_batch["Levels"][level][i]
             cf_file_name = os.path.split(cfname)
             logger.info('Starting ECOSTRESS output with '+cf_file_name[1])
-            cf = pfp_io.get_controlfilecontents(cfname)
-            pfp_io.write_csv_ecostress(cf)
-            logger.info('Finished ECOSTRESS output with '+cf_file_name[1])
-            logger.info('')
+            try:
+                cf = pfp_io.get_controlfilecontents(cfname)
+                pfp_io.write_csv_ecostress(cf)
+                logger.info('Finished ECOSTRESS output with '+cf_file_name[1])
+                logger.info('')
+            except:
+                msg = "Error occurred during ECOSTRESS output with "+cf_file_name[1]
+                logger.error(msg)
+                continue
     elif level.lower()=="fluxnet":
         # convert netCDF files to FluxNet CSV files
         for i in cf_batch["Levels"][level].keys():
@@ -155,10 +160,15 @@ for level in level_list:
                 continue
             cf_file_name = os.path.split(cfname)
             logger.info('Starting climatology with '+cf_file_name[1])
-            cf = pfp_io.get_controlfilecontents(cfname)
-            pfp_clim.climatology(cf)
-            logger.info('Finished climatology with '+cf_file_name[1])
-            logger.info('')
+            try:
+                cf = pfp_io.get_controlfilecontents(cfname)
+                pfp_clim.climatology(cf)
+                logger.info('Finished climatology with '+cf_file_name[1])
+                logger.info('')
+            except:
+                msg = "Error occurred during climatology with "+cf_file_name[1]
+                logger.error(msg)
+                continue
     elif level.lower()=="cpd":
         # ustar threshold from change point detection
         for i in cf_batch["Levels"][level].keys():
