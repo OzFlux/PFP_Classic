@@ -444,7 +444,7 @@ def reddyproc_write_csv(cf):
     for series in series_list:
         if series=="NEE":
             if data[series]["Attr"]["units"] in ["mg/m2/s","mgCO2/m2/s"]:
-                data[series]["Data"] = mf.Fc_umolpm2psfrommgpm2ps(data[series]["Data"])
+                data[series]["Data"] = mf.Fc_umolpm2psfrommgCO2pm2ps(data[series]["Data"])
                 data[series]["Attr"]["units"] = "umolm-2s-1"
             elif data[series]["Attr"]["units"]=='umol/m2/s':
                 data[series]["Attr"]["units"] = "umolm-2s-1"
@@ -1043,13 +1043,13 @@ def fn_write_csv(cf):
     #adjust units if required
     for series in series_list:
         if series=="FC" and data[series]["Attr"]["units"]=='mg/m2/s':
-            data[series]["Data"] = mf.Fc_umolpm2psfrommgpm2ps(data[series]["Data"])
+            data[series]["Data"] = mf.Fc_umolpm2psfrommgCO2pm2ps(data[series]["Data"])
             data[series]["Attr"]["units"] = "umol/m2/s"
         if series=="CO2" and data[series]["Attr"]["units"]=='mg/m3':
             CO2 = data["CO2"]["Data"]
             TA = data["TA"]["Data"]
             PA = data["PA"]["Data"]
-            data[series]["Data"] = mf.co2_ppmfrommgpm3(CO2,TA,PA)
+            data[series]["Data"] = mf.co2_ppmfrommgCO2pm3(CO2,TA,PA)
             data[series]["Attr"]["units"] = "umol/mol"
         if series=="H2O" and data[series]["Attr"]["units"]=='g/m3':
             H2O = data["H2O"]["Data"]
