@@ -224,7 +224,7 @@ def ConvertCO2Units(cf, ds, CO2='CO2'):
             c_mgpm3,flag,attr = GetSeriesasMA(ds,CO2)
             T,f,a = GetSeriesasMA(ds,'Ta')
             p,f,a = GetSeriesasMA(ds,'ps')
-            c_ppm = mf.co2_ppmfrommgpm3(c_mgpm3,T,p)
+            c_ppm = mf.co2_ppmfrommgCO2pm3(c_mgpm3,T,p)
             attr["long_name"] = attr["long_name"]+", converted to umol/mol"
             attr["units"] = CO2_units_out
             attr["standard_name"] = "mole_concentration_of_carbon_dioxide_in_air"
@@ -233,7 +233,7 @@ def ConvertCO2Units(cf, ds, CO2='CO2'):
             c_ppm,flag,attr = GetSeriesasMA(ds,CO2)
             T,f,a = GetSeriesasMA(ds,'Ta')
             p,f,a = GetSeriesasMA(ds,'ps')
-            c_mgpm3 = mf.co2_mgpm3fromppm(c_ppm,T,p)
+            c_mgpm3 = mf.co2_mgCO2pm3fromppm(c_ppm,T,p)
             attr["long_name"] = attr["long_name"]+", converted to mg/m3"
             attr["units"] = CO2_units_out
             attr["standard_name"] = "mass_concentration_of_carbon_dioxide_in_air"
@@ -279,14 +279,14 @@ def ConvertFcUnits(cf, ds):
         # if we get here, we need to convert units
         logger.info(" Converting "+label+" from "+Fc_units_in+" to "+Fc_units_out)
         if Fc_units_out == "umol/m2/s" and Fc_units_in == "mg/m2/s":
-            Fc["Data"] = mf.Fc_umolpm2psfrommgpm2ps(Fc["Data"])
+            Fc["Data"] = mf.Fc_umolpm2psfrommgCO2pm2ps(Fc["Data"])
             Fc["Attr"]["long_name"] = Fc["Attr"]["long_name"]+", converted to umol/m2/s"
             Fc["Attr"]["units"] = Fc_units_out
             #attr["standard_name"] = "surface_upward_mole_flux_of_carbon_dioxide"
             CreateVariable(ds, Fc)
         elif Fc_units_out == "mg/m2/s" and Fc_units_in == "umol/m2/s":
-            Fc["Data"] = mf.Fc_mgpm2psfromumolpm2ps(Fc["Data"])
-            Fc["Attr"]["long_name"] = Fc["Attr"]["long_name"]+", converted to mg/m2/s"
+            Fc["Data"] = mf.Fc_mgCO2pm2psfromumolpm2ps(Fc["Data"])
+            Fc["Attr"]["long_name"] = Fc["Attr"]["long_name"]+", converted to mgCO2/m2/s"
             Fc["Attr"]["units"] = Fc_units_out
             #attr["standard_name"] = "not defined"
             CreateVariable(ds, Fc)
@@ -444,7 +444,7 @@ def convert_units_co2(ds, variable, new_units):
         ps = GetVariable(ds, "ps")
         Ta_def = numpy.full(12, numpy.ma.mean(Ta["Data"]))
         ps_def = numpy.full(12, numpy.ma.mean(ps["Data"]))
-        variable["Data"] = mf.co2_ppmfrommgpm3(variable["Data"], Ta["Data"], ps["Data"])
+        variable["Data"] = mf.co2_ppmfrommgCO2pm3(variable["Data"], Ta["Data"], ps["Data"])
         # update the range check limits in the variable attribute
         # this one is more complicated because it involves temperature and pressure
         for attr in ["rangecheck_lower", "rangecheck_upper"]:
@@ -452,7 +452,7 @@ def convert_units_co2(ds, variable, new_units):
                 # get the list of monthly maxima or minima
                 limit_list = parse_rangecheck_limits(variable["Attr"][attr])
                 # get an array of default conversions using mean temperature and pressure
-                attr_limit = mf.co2_ppmfrommgpm3(numpy.array(limit_list), Ta_def, ps_def)
+                attr_limit = mf.co2_ppmfrommgCO2pm3(numpy.array(limit_list), Ta_def, ps_def)
                 # now loop over each month and get the maxima (rangecheck_lower) or minima
                 # (rangecheck_upper) depending on the actual temperature and pressure
                 for m, item in enumerate(limit_list):
@@ -465,7 +465,7 @@ def convert_units_co2(ds, variable, new_units):
                     # get an array with the limit value for this month
                     data = numpy.full(len(idx), limit_list[m])
                     # convert the limit to new units
-                    limit = mf.co2_ppmfrommgpm3(data, Ta["Data"][idx], ps["Data"][idx])
+                    limit = mf.co2_ppmfrommgCO2pm3(data, Ta["Data"][idx], ps["Data"][idx])
                     # set the appropriate element of the attr_limit array
                     if attr == "rangecheck_lower":
                         # take the maximum of the rangecheck_lower values
@@ -499,7 +499,7 @@ def convert_units_co2(ds, variable, new_units):
         ps = GetVariable(ds, "ps")
         Ta_def = numpy.full(12, numpy.ma.mean(Ta["Data"]))
         ps_def = numpy.full(12, numpy.ma.mean(ps["Data"]))
-        variable["Data"] = mf.co2_mgpm3fromppm(variable["Data"], Ta["Data"], ps["Data"])
+        variable["Data"] = mf.co2_mgCO2pm3fromppm(variable["Data"], Ta["Data"], ps["Data"])
         # update the range check limits in the variable attribute
         # this one is more complicated because it involves temperature and pressure
         for attr in ["rangecheck_lower", "rangecheck_upper"]:
@@ -507,7 +507,7 @@ def convert_units_co2(ds, variable, new_units):
                 # get the list of monthly maxima or minima
                 limit_list = parse_rangecheck_limits(variable["Attr"][attr])
                 # get an array of default conversions using mean temperature and pressure
-                attr_limit = mf.co2_mgpm3fromppm(numpy.array(limit_list), Ta_def, ps_def)
+                attr_limit = mf.co2_mgCO2pm3fromppm(numpy.array(limit_list), Ta_def, ps_def)
                 # now loop over each month and get the maxima (rangecheck_lower) or minima
                 # (rangecheck_upper) depending on the actual temperature and pressure
                 for m, item in enumerate(limit_list):
@@ -520,7 +520,7 @@ def convert_units_co2(ds, variable, new_units):
                     # get an array with the limit value for this month
                     data = numpy.full(len(idx), limit_list[m])
                     # convert the limit to new units
-                    limit = mf.co2_mgpm3fromppm(data, Ta["Data"][idx], ps["Data"][idx])
+                    limit = mf.co2_mgCO2pm3fromppm(data, Ta["Data"][idx], ps["Data"][idx])
                     # set the appropriate element of the attr_limit array
                     if attr == "rangecheck_lower":
                         # take the maximum of the rangecheck_lower values
@@ -551,13 +551,13 @@ def convert_units_co2(ds, variable, new_units):
         variable["Attr"]["units"] = new_units
     elif old_units in ["mg/m2/s","mgCO2/m2/s"] and new_units=="umol/m2/s":
         # convert the data
-        variable["Data"] = mf.Fc_umolpm2psfrommgpm2ps(variable["Data"])
+        variable["Data"] = mf.Fc_umolpm2psfrommgCO2pm2ps(variable["Data"])
         # update the range check limits in the variable attribute
         # this one is easy because it is a simple numerical change
         for attr in ["rangecheck_lower", "rangecheck_upper"]:
             if attr in variable["Attr"]:
                 attr_limit = numpy.array(parse_rangecheck_limits(variable["Attr"][attr]))
-                attr_limit = mf.Fc_umolpm2psfrommgpm2ps(attr_limit)
+                attr_limit = mf.Fc_umolpm2psfrommgCO2pm2ps(attr_limit)
                 variable["Attr"][attr] = list(attr_limit)
                 if attr == "rangecheck_lower":
                     valid_range_minimum = numpy.amin(attr_limit)

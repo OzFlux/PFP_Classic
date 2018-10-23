@@ -859,7 +859,7 @@ def CheckCovarianceUnits(ds):
         if "umol" in attr["units"]:
             Ta,f,a = pfp_utils.GetSeriesasMA(ds,"Ta")
             ps,f,a = pfp_utils.GetSeriesasMA(ds,"ps")
-            data = mf.co2_mgpm3fromppm(data,Ta,ps)
+            data = mf.co2_mgCO2pm3fromppm(data,Ta,ps)
             attr["units"] = "mg/m2/s"
             pfp_utils.CreateSeries(ds,item,data,flag,attr)
     for item in h2o_list:
@@ -1096,11 +1096,11 @@ def CalculateFcStorageSinglePoint(cf,ds,Fc_out='Fc_single',CO2_in='CO2'):
             ps,f,a = pfp_utils.GetSeriesasMA(ds,'ps',si=0,ei=-1)
             # check the CO2 concentration units
             # if the units are mg/m3, convert CO2 concentration to umol/mol before taking the difference
-            if Cc_attr['units']=='mg/m3': Cc = mf.co2_ppmfrommgpm3(Cc,Ta,ps)
+            if Cc_attr['units']=='mg/m3': Cc = mf.co2_ppmfrommgCO2pm3(Cc,Ta,ps)
             # calculate the change in CO2 concentration between time steps, CO2 concentration in umol/mol.
             dc = numpy.ma.ediff1d(Cc,to_begin=0)
             # convert the CO2 concentration difference from umol/mol to mg/m3
-            dc = mf.co2_mgpm3fromppm(dc,Ta,ps)
+            dc = mf.co2_mgCO2pm3fromppm(dc,Ta,ps)
             # calculate the time step in seconds
             dt=86400*numpy.ediff1d(ds.series['xlDateTime']['Data'],to_begin=float(ts)/1440)    # time step in seconds from the Excel datetime values
             # calculate the CO2 flux based on storage below the measurement height
@@ -1772,7 +1772,7 @@ def Fc_WPL(cf,ds,Fc_wpl_out='Fc',Fc_raw_in='Fc',Fh_in='Fh',Fe_in='Fe',Ta_in='Ta'
         if Cc_attr["units"]=="umol/mol":
             msg = " Fc_WPL: CO2 units ("+Cc_attr["units"]+") converted to mg/m3"
             logger.warning(msg)
-            Cc = mf.co2_mgpm3fromppm(Cc,Ta,ps)
+            Cc = mf.co2_mgCO2pm3fromppm(Cc,Ta,ps)
         else:
             msg = " Fc_WPL: unrecognised units ("+Cc_attr["units"]+") for CO2"
             logger.error(msg)
