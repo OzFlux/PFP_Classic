@@ -14,6 +14,7 @@ import pfp_ts
 import pfp_utils
 
 logger = logging.getLogger("pfp_log")
+log_error = logging.getLogger("pfp_error")
 
 def ApplyQCChecks(variable):
     """
@@ -363,7 +364,8 @@ def do_SONICcheck(cf, ds, code=3):
             ds.series[label]["Data"][index] = numpy.float64(c.missing_value)
             ds.series[label]["Flag"][index] = numpy.int32(code)
         else:
-            logger.error("  SONICcheck: series "+str(label)+" not found in data")
+            msg = "  SONICcheck: series "+str(label)+" not found in data"
+            logger.error(msg)
     return
 
 def do_dependencycheck(cf, ds, section, series, code=23, mode="quiet"):

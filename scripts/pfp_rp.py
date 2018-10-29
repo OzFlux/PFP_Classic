@@ -1482,6 +1482,10 @@ def L6_summary_daily(ds, series_dict):
         flag_2d = variable["Flag"].reshape(nDays, ntsInDay)
         for i in range(nDays):
             daily_dict["variables"][item]["flag"][i] = 1-float(numpy.count_nonzero(flag_2d[i,:]))/float(ntsInDay)
+        # now copy across some variable attributes
+        for attr in ["long_name", "standard_name", "description", "valid_range", "missing_vaue"]:
+            if attr in variable["Attr"]:
+                daily_dict["variables"][item]["attr"] = variable["Attr"]
     return daily_dict
 
 def L6_summary_co2andh2o_fluxes(ds, series_dict, daily_dict):

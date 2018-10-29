@@ -291,7 +291,8 @@ def cpd_main(cf):
     # Drop all years with no data remaining after QC, and return nothing if all years were dropped
     [counts_df.drop(i,inplace=True) for i in counts_df.index if counts_df.loc[i, 'Total'] == 0]
     if counts_df.empty:
-        logger.error('Insufficient data for analysis... exiting')
+        msg = "Insufficient data for analysis... exiting"
+        logger.error(msg)
         return
 
     # QC the combined results
@@ -593,7 +594,8 @@ def sort(df, flux_period, years_index, i):
     years_df['seasons'] = np.where(years_df['seasons'] < 0, 0, years_df['seasons'])
     years_df['seasons'] = years_df['seasons'].astype(int)
     if np.all(years_df['seasons'] <= 0):
-        logger.error('No years with sufficient data for evaluation, exiting...')
+        msg = 'No years with sufficient data for evaluation, exiting...'
+        logger.error(msg)
         return
     elif np.any(years_df['seasons'] <= 0):
         exclude_years_list = years_df[years_df['seasons'] <= 0].index.tolist()

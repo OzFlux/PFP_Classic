@@ -55,8 +55,8 @@ for item in dir_list:
 # start a log file with the current date and time in the name
 t = time.localtime()
 rundatetime = datetime.datetime(t[0], t[1], t[2], t[3], t[4], t[5]).strftime("%Y%m%d%H%M")
-log_filename = 'pfp_'+rundatetime+'.log'
-logger = pfp_log.init_logger(logger_name="pfp_log", file_handler=log_filename)
+log_file_name = 'pfp_'+rundatetime+'.log'
+logger = pfp_log.init_logger(logger_name="pfp_log", log_file_name=log_file_name)
 
 class qcgui(tk.Tk):
     """

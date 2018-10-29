@@ -382,7 +382,7 @@ def gfalternate_getalternatevaratmaxr(ds_tower,ds_alternate,alternate_info,mode=
             rval = numpy.ma.corrcoef(data_tower,data_alternate)[0,1]
             if rval=="nan": rval = float(0)
         else:
-            if mode!="quiet":
+            if mode != "quiet":
                 msg = " getalternatevaratmaxr: not enough good data in alternate "+var
                 logger.error(msg)
             rval = float(0)
@@ -412,7 +412,8 @@ def gfalternate_getalternatevarlist(ds_alternate, label):
         alternate_var_list = [item for item in alternate_var_list if "sw" not in item]
     # check the series in the alternate data
     if len(alternate_var_list)==0:
-        logger.error("gfalternate_getalternatevarlist: series %s not in alternate data file", label)
+        msg = "gfalternate_getalternatevarlist: "+label+" not in alternate data file"
+        logger.error(msg)
     return alternate_var_list
 
 def gfalternate_getdataas2d(odt, data,alternate_info):
@@ -1197,7 +1198,8 @@ def gfalternate_plotsummary(ds,alternate_info):
         # now loop over the variables in the group list
         for col,output in enumerate(var_list):
             if output not in output_list:
-                logger.error("Series %s requested for summary plot is not available", output)
+                msg = "Summary plot for "+output+" is not available"
+                logger.error(msg)
                 continue
             # append the variable name to the variable name string
             figlab = figlab+output
@@ -1367,7 +1369,8 @@ def gfalternate_run_gui(ds_tower,ds_alt,alt_gui,alternate_info):
                           "startdate":startdate.strftime("%Y-%m-%d %H:%M"),
                           "enddate":enddate.strftime("%Y-%m-%d %H:%M")}
     else:
-        logger.error("GapFillFromAlternate: unrecognised period option")
+        msg = "GapFillFromAlternate: unrecognised period option"
+        logger.error(msg)
     # write Excel spreadsheet with fit statistics
     #pfp_io.xl_write_AlternateStats(ds_tower)
 
@@ -1496,7 +1499,8 @@ def gfalternate_run_nogui(cf,ds_tower,ds_alt,alternate_info):
                           "startdate":startdate.strftime("%Y-%m-%d %H:%M"),
                           "enddate":enddate.strftime("%Y-%m-%d %H:%M")}
     else:
-        logger.error("GapFillFromAlternate: unrecognised period option")
+        msg = "GapFillFromAlternate: unrecognised period option"
+        logger.error(msg)
     # write Excel spreadsheet with fit statistics
     pfp_io.xl_write_AlternateStats(ds_tower)
 
