@@ -28,7 +28,7 @@ def init_logger(logger_name="pfp_log", log_file_name="pfp.log", to_file=True, to
         # add the file handler to the logger
         logger.addHandler(fh1)
         # set up a separate file for errors
-        error_file_name = log_file_name.replace(".log","_errors.log")
+        error_file_name = log_file_name.replace(".","_errors.")
         error_file_path = os.path.join("logfiles", error_file_name)
         fh2 = logging.FileHandler(error_file_path)
         fh2.setLevel(logging.ERROR)
