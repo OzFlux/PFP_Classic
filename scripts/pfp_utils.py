@@ -300,18 +300,19 @@ def convert_units_func(ds, variable, new_units, mode="quiet"):
      Generic routine for changing units.
      Nothing is done if the original units are the same as the requested units.
     Usage:
-     new_data = pfp_utils.convert_units_func(old_data,old_units,new_units)
-     where old_data is a 1D array of data in the original units
-           old_units are the units of the original data
-           new_units are the units of the new data
-           ts is the time step
+     new_variable = pfp_utils.convert_units_func(ds, old_variable, new_units)
+     where;
+      new_variable is a copy of old_variable converted to new_units
+      ds is a data structure
+      old_variable is a variable in the original units
+      new_units are the units of the new data
     Author: PRI
     Date: July 2015
     """
     old_units = variable["Attr"]["units"]
     if old_units == new_units:
         # old units same as new units, nothing to do ...
-        return
+        return variable
     # check the units are something we understand
     # add more lists here to cope with water etc
     co2_list = ["umol/m2/s","gC/m2","mg/m3","mgCO2/m3","umol/mol","mg/m2/s","mgCO2/m2/s"]
@@ -853,6 +854,24 @@ def CreateSeries(ds,Label,Data,Flag,Attr):
             ds.series['_tmp_']['Attr'][item] = Attr[item]
     ds.series[unicode(Label)] = ds.series['_tmp_']     # copy temporary series to new series
     del ds.series['_tmp_']                        # delete the temporary series
+
+def CopyVariable(variable):
+    """
+    Purpose:
+     Make a shallow-ish copy of a variable.
+    Usage:
+     variable_copy = pfp_utils.CopyVariable(variable)
+    Author: PRI
+    Date: October 2018
+    """
+    tmp = {"Data":Fsd["Data"], "Flag":Fsd["Flag"], "Attr":Fsd["Attr"]}
+    if "Label" in Fsd:
+        tmp["Label"] = Fsd["Label"]
+    if "DateTime" in Fsd:
+        tmp["DateTime"] = Fsd["DateTime"]
+    if "time_step" in Fsd:
+        tmp["time_step"] = Fsd["time_step"]
+    return tmp
 
 def CreateDatetimeRange(start,stop,step=datetime.timedelta(minutes=30)):
     '''
