@@ -101,6 +101,12 @@ def get_yaxislimitsfromcf(cf,nFig,maxkey,minkey,nSer,YArray):
             YAxMin = float(minlist[nSer])         # Evaluate the entry for this series
     else:
         YAxMin = numpy.ma.minimum(YArray)                            # Y axis minima not given, use auto
+    if (abs(YAxMax-YAxMin) < c.eps):
+        YAxDelta = 0.001*YAxMax
+        if YAxDelta == 0:
+            YAxDelta = 1
+        YAxMax = YAxMax + YAxDelta
+        YAxMin = YAxMin - YAxDelta
     return YAxMax,YAxMin
 
 def pltfingerprint_createdict(cf,ds):
