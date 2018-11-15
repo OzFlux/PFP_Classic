@@ -955,7 +955,8 @@ def gfSOLO_runseqsolo(dsa,dsb,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-
         dsb.series[outputlabel]["Attr"]["long_name"] = dsb.series[outputlabel]["Attr"]["long_name"]+", modeled by SOLO"
         return 1
     else:
-        logger.error(' gfSOLO_runseqsolo: SEQSOLO did not run correctly, check the SOLO GUI and the log files')
+        msg = " SEQSOLO did not run correctly, check the SOLO GUI and the log files"
+        logger.error(msg)
         return 0
 
 def gfSOLO_runsofm(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
@@ -975,13 +976,16 @@ def gfSOLO_runsofm(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
         driver,flag,attr = pfp_utils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
         index = numpy.where(abs(driver-float(c.missing_value))<c.eps)[0]
         if len(index)!=0:
-            logger.error(' GapFillUsingSOLO: c.missing_value found in driver '+TheseOnes+' at lines '+str(index))
+            msg = " GapFillUsingSOLO: c.missing_value found in driver "+TheseOnes+" at lines "+str(index)
+            logger.error(msg)
             badlines = badlines+index.tolist()
             for n in index:
                 baddates.append(dsb.series["DateTime"]["Data"][n])
                 badvalues.append(dsb.series[TheseOnes]["Data"][n])
-            logger.error(' GapFillUsingSOLO: driver values: '+str(badvalues))
-            logger.error(' GapFillUsingSOLO: datetimes: '+str(baddates))
+            msg = " GapFillUsingSOLO: driver values: "+str(badvalues)
+            logger.error(msg)
+            msg = " GapFillUsingSOLO: datetimes: "+str(baddates)
+            logger.error(msg)
         sofminputdata[:,i] = driver[:]
         i = i + 1
     if len(badlines)!=0:
@@ -1009,7 +1013,8 @@ def gfSOLO_runsofm(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
     if os.path.exists('solo/output/sofm_4.out'):
         return 1
     else:
-        logger.error(' gfSOLO_runsofm: SOFM did not run correctly, check the SOLO GUI and the log files')
+        msg = " gfSOLO_runsofm: SOFM did not run correctly, check the SOLO GUI and the log files"
+        logger.error(msg)
         return 0
 
 def gfSOLO_runsolo(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
@@ -1061,7 +1066,8 @@ def gfSOLO_runsolo(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
     if os.path.exists('solo/output/eigenValue.out'):
         return 1
     else:
-        logger.error(' gfSOLO_runsolo: SOLO did not run correctly, check the SOLO GUI and the log files')
+        msg = ' gfSOLO_runsolo: SOLO did not run correctly, check the SOLO GUI and the log files'
+        logger.error(msg)
         return 0
 
 def gfSOLO_setnodesEntry(solo_gui,drivers):

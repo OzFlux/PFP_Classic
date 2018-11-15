@@ -170,7 +170,8 @@ def DateTimeFromDoY(ds,Year_in,DoY_in,Hdh_in):
 
 def DateTimeFromTimeStamp(ds,TimeStamp_in,fmt=""):
     if TimeStamp_in not in ds.series.keys():
-        logger.error(" Required series "+TimeStamp_in+" not found")
+        msg = " Required series "+TimeStamp_in+" not found"
+        logger.error(msg)
         return 0
     TimeStamp = ds.series[TimeStamp_in]["Data"]
     # guard against empty fields in what we assume is the datetime

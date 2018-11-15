@@ -135,7 +135,8 @@ def copy_datastructure(cf,ds_in):
                         ds_out.series[ThisOne]['Flag'] = numpy.concatenate((ds_out.series[ThisOne]['Flag'],flag))
                     elif nRecs_file > nRecs_out:
                         # tell the user something is wrong
-                        logger.error('copy_datastructure: L3 file contains less data than L4 file')
+                        msg = 'copy_datastructure: L3 file contains less data than L4 file'
+                        logger.error(msg)
                         # return an empty dictionary
                         ds_out = {}
                     else:
@@ -425,7 +426,8 @@ def reddyproc_write_csv(cf):
     for series in series_list:
         ncname = data[series]["ncname"]
         if ncname not in ds.series.keys():
-            logger.error("Series "+ncname+" not in netCDF file, skipping ...")
+            msg = "Series "+ncname+" not in netCDF file, skipping ..."
+            logger.error(msg)
             series_list.remove(series)
             continue
         d,f,a = pfp_utils.GetSeries(ds,ncname,si=si,ei=ei)
@@ -905,7 +907,8 @@ def ep_biomet_get_data(cf,ds):
     for ep_series in ep_series_list:
         ncname = cf["Variables"][ep_series]["ncname"]
         if ncname not in ds.series.keys():
-            logger.error("Series "+ncname+" not in netCDF file, skipping ...")
+            msg = "Series "+ncname+" not in netCDF file, skipping ..."
+            logger.error(msg)
             ep_series_list.remove(ep_series)
             continue
         data[ep_series] = copy.deepcopy(ds.series[ncname])
@@ -1009,10 +1012,12 @@ def fn_write_csv(cf):
         nRecs_year = 8760
         nRecs_leapyear = 8784
     else:
-        logger.error(" Unrecognised time step ("+str(ts)+")")
+        msg = " Unrecognised time step ("+str(ts)+")"
+        logger.error(msg)
         return
     if (int(ds.globalattributes["nc_nrecs"])!=nRecs_year) & (int(ds.globalattributes["nc_nrecs"])!=nRecs_leapyear):
-        logger.error(" Number of records in file does not equal "+str(nRecs_year)+" or "+str(nRecs_leapyear))
+        msg = " Number of records in file does not equal "+str(nRecs_year)+" or "+str(nRecs_leapyear)
+        logger.error(msg)
         msg = str(len(ds.series["DateTime"]["Data"]))+" "+str(ds.series["DateTime"]["Data"][0])
         msg = msg+" "+str(ds.series["DateTime"]["Data"][-1])
         logger.error(msg)
@@ -1029,7 +1034,8 @@ def fn_write_csv(cf):
     for series in series_list:
         ncname = cf["Variables"][series]["ncname"]
         if ncname not in ds.series.keys():
-            logger.error("Series "+ncname+" not in netCDF file, skipping ...")
+            msg = "Series "+ncname+" not in netCDF file, skipping ..."
+            logger.error(msg)
             series_list.remove(series)
             continue
         data[series] = ds.series[ncname]
@@ -1276,7 +1282,8 @@ def nc_concatenate(cf):
     fixtimestepmethod = pfp_utils.get_keyvaluefromcf(cf,["Options"],"FixTimeStepMethod",default="round")
     ds_n = nc_read_series(baseFileName,fixtimestepmethod=fixtimestepmethod)
     if len(ds_n.series.keys())==0:
-        logger.error(' An error occurred reading netCDF file: '+baseFileName)
+        msg = ' An error occurred reading netCDF file: '+baseFileName
+        logger.error(msg)
         return
     # fill the global attributes
     for ThisOne in ds_n.globalattributes.keys():
@@ -1355,7 +1362,8 @@ def nc_concatenate(cf):
         logger.info(' Reading data from '+nc_file_name[1])
         ds_n = nc_read_series(ncFileName,fixtimestepmethod=fixtimestepmethod)
         if len(ds.series.keys())==0:
-            logger.error(' An error occurred reading the netCDF file: '+nc_file_name[1])
+            msg = ' An error occurred reading the netCDF file: '+nc_file_name[1]
+            logger.error(msg)
             return
         dt_n = ds_n.series['DateTime']['Data']
         dt = ds.series['DateTime']['Data']
@@ -1700,7 +1708,8 @@ def nc_read_series(ncFullName,checktimestep=True,fixtimestepmethod="round"):
     # check to see if the requested file exists, return empty ds if it doesn't
     if ncFullName[0:4]!="http":
         if not pfp_utils.file_exists(ncFullName,mode="quiet"):
-            logger.error(' netCDF file '+ncFullName+' not found')
+            msg = ' netCDF file '+ncFullName+' not found'
+            logger.error(msg)
             raise Exception("nc_read_series: file not found")
     # file probably exists, so let's read it
     ncFile = netCDF4.Dataset(ncFullName,'r')
@@ -1767,7 +1776,8 @@ def nc_read_todf(ncFullName, var_list=[], include_qcflags=False):
     netCDF4.default_encoding = 'latin-1'
     # check to see if the requested file exists, return empty ds if it doesn't
     if not pfp_utils.file_exists(ncFullName, mode="quiet"):
-        logger.error(' netCDF file '+ncFullName+' not found')
+        msg = ' netCDF file '+ncFullName+' not found'
+        logger.error(msg)
         raise Exception("nc_read_todf: file not found")
     # file probably exists, so let's read it
     ncFile = netCDF4.Dataset(ncFullName, "r")
@@ -1898,7 +1908,8 @@ def nc_open_write(ncFullName,nctype='NETCDF4'):
     try:
         ncFile = netCDF4.Dataset(ncFullName,'w',format=nctype)
     except:
-        logger.error(' Unable to open netCDF file '+ncFullName+' for writing')
+        msg = ' Unable to open netCDF file '+ncFullName+' for writing'
+        logger.error(msg)
         ncFile = ''
     return ncFile
 
@@ -2137,7 +2148,8 @@ def xl_open_write(xl_name):
     try:
         xl_file = xlwt.Workbook()
     except:
-        logger.error(' Unable to open Excel file '+xl_name+' for writing')
+        msg = ' Unable to open Excel file '+xl_name+' for writing'
+        logger.error(msg)
         xl_file = ''
     return xl_file
 
@@ -2151,7 +2163,8 @@ def xl_read_flags(cf,ds,level,VariablesInFile):
     if os.path.isfile(xlFullName):
         xlBook = xlrd.open_workbook(xlFullName)
     else:
-        logger.error(' Excel file '+xlFullName+' not found, choose another')
+        msg = ' Excel file '+xlFullName+' not found, choose another'
+        logger.warning()
         xlFullName = get_filename_dialog(path='.',title='Choose an Excel file')
         if len(xlFullName)==0:
             return
@@ -2173,7 +2186,8 @@ def xl_read_flags(cf,ds,level,VariablesInFile):
                     if Types[i]==2: #xlType=3 means a date/time value, xlType=2 means a number
                         ds.series[ThisOne]['Flag'][i] = numpy.int32(Values[i])
                     else:
-                        logger.error('  xl_read_flags: flags for '+ThisOne+' not found in xl file')
+                        msg = '  xl_read_flags: flags for '+ThisOne+' not found in xl file'
+                        logger.error(msg)
     return ds
 
 def xl_read_series(cf):
@@ -2240,9 +2254,11 @@ def xl_read_series(cf):
                         ds.series["xlDateTime"]["Flag"][i] = numpy.int32(0)
                 ds.globalattributes['nc_nrecs'] = str(nrecs)
             else:
-                logger.error("  xlDateTime not found on sheet "+xlsheet_name)
+                msg = "  xlDateTime not found on sheet "+xlsheet_name
+                logger.error(msg)
         else:
-            logger.error("  Sheet "+xlsheet_name+" (xlDateTime) not found in Excel workbook")
+            msg = "  Sheet "+xlsheet_name+" (xlDateTime) not found in Excel workbook"
+            logger.error(msg)
     # remove xlDateTime from the list of series to be read
     if "xlDateTime" in label_list:
         label_list.remove("xlDateTime")
@@ -2270,12 +2286,15 @@ def xl_read_series(cf):
                                 ds.series[label]["Data"][i] = numpy.float64(values[i])
                                 ds.series[label]["Flag"][i] = numpy.int32(0)
                     else:
-                        logger.error("  "+label+" on sheet "+xlsheet_name+" is the wrong length")
+                        msg = "  "+label+" on sheet "+xlsheet_name+" is the wrong length"
+                        logger.error(msg)
                         continue
                 else:
-                    logger.error("  "+label+" not found on sheet "+xlsheet_name)
+                    msg = "  "+label+" not found on sheet "+xlsheet_name
+                    logger.error(msg)
             else:
-                logger.error("  Sheet "+xlsheet_name+" ("+label+") not found in Excel workbook")
+                msg = "  Sheet "+xlsheet_name+" ("+label+") not found in Excel workbook"
+                logger.error(msg)
     ds.returncodes = {"value":0,"message":"OK"}
     return ds
 

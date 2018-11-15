@@ -52,7 +52,8 @@ def gfalternate_createdict(cf, ds, series, ds_alt):
     section = pfp_utils.get_cfsection(cf, series=series, mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
-        logger.error("GapFillFromAlternate: Series %s not found in control file, skipping ...", series)
+        msg = "GapFillFromAlternate: Series %s not found in control file, skipping ...", series
+        logger.error(msg)
         return
     # create the alternate directory in the data structure
     if "alternate" not in dir(ds):
@@ -167,7 +168,8 @@ def gfalternate_matchstartendtimes(ds,ds_alternate):
         ldtt = [ldt_tower[i] for i in tower_index]
         if ldta!=ldtt:
             # and exit with a helpful message if they dont
-            logger.error(" Something went badly wrong and I'm giving up")
+            msg = " Something went badly wrong and I'm giving up"
+            logger.error(msg)
             sys.exit()
         # get a list of alternate series
         alternate_series_list = [item for item in ds_alternate.series.keys() if "_QCFlag" not in item]
@@ -213,7 +215,8 @@ def gfClimatology_createdict(cf, ds, series):
     section = pfp_utils.get_cfsection(cf, series=series,mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section) == 0:
-        logger.error("GapFillFromClimatology: Series %s not found in control file, skipping ...", series)
+        msg = "GapFillFromClimatology: "+series+" not found in control file, skipping ..."
+        logger.error(msg)
         return
     # create the climatology directory in the data structure
     if "climatology" not in dir(ds):
@@ -268,7 +271,8 @@ def gfMDS_createdict(cf, ds, series):
     section = pfp_utils.get_cfsection(cf, series=series, mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
-        logger.error("GapFillUsingMDS: Series %s not found in control file, skipping ...", series)
+        msg = "GapFillUsingMDS: "+series+" not found in control file, skipping ..."
+        logger.error(msg)
         return
     # create the MDS attribute (a dictionary) in ds, this will hold all MDS settings
     if "mds" not in dir(ds):
@@ -360,7 +364,8 @@ def gfSOLO_createdict(cf,ds,series):
     section = pfp_utils.get_cfsection(cf,series=series,mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
-        logger.error("GapFillUsingSOLO: Series %s not found in control file, skipping ...", series)
+        msg = "GapFillUsingSOLO: "+series+" not found in control file, skipping ..."
+        logger.error(msg)
         return
     # create the solo directory in the data structure
     if "solo" not in dir(ds): ds.solo = {}
@@ -433,9 +438,11 @@ def GapFillFromClimatology(ds):
         #if len(index)==0: continue                      # no gaps found in "series"
         cli_filename = ds.climatology[output]["file_name"]
         if not os.path.exists(cli_filename):
-            logger.error(" GapFillFromClimatology: Climatology file %s doesn't exist", cli_filename)
+            msg = " GapFillFromClimatology: "+cli_filename+" doesn't exist"
+            logger.error(msg)
             continue
-        if cli_filename not in cli_xlbooks: cli_xlbooks[cli_filename] = xlrd.open_workbook(cli_filename)
+        if cli_filename not in cli_xlbooks:
+            cli_xlbooks[cli_filename] = xlrd.open_workbook(cli_filename)
         # local pointers to the series name and climatology method
         label = ds.climatology[output]["label_tower"]
         method = ds.climatology[output]["method"]
@@ -446,7 +453,8 @@ def GapFillFromClimatology(ds):
         elif method=="interpolated daily":
             gfClimatology_interpolateddaily(ds,label,output,cli_xlbooks)
         else:
-            logger.error(" GapFillFromClimatology: unrecognised method option for %s", label)
+            msg = " GapFillFromClimatology: unrecognised method option for "+label
+            logger.error(msg)
             continue
     if 'GapFillFromClimatology' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', GapFillFromClimatology'
