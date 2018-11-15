@@ -325,13 +325,15 @@ def l4qc(cf,ds3):
     # re-calculate the meteorological variables
     pfp_ts.CalculateMeteorologicalVariables(ds4)
     # the Tumba rhumba
-    pfp_ts.CalculateComponentsFromWsWd(ds4)
+    #pfp_ts.CalculateComponentsFromWsWd(ds4)
     # check for any missing data
     pfp_utils.get_missingingapfilledseries(ds4)
     # write the percentage of good data as a variable attribute
     pfp_utils.get_coverage_individual(ds4)
     # write the percentage of good data for groups
     pfp_utils.get_coverage_groups(ds4)
+    # remove intermediate series from the data structure
+    pfp_ts.RemoveIntermediateSeries(cf, ds4)
 
     return ds4
 
@@ -376,11 +378,13 @@ def l5qc(cf, ds4):
     pfp_utils.get_coverage_individual(ds5)
     # write the percentage of good data for groups
     pfp_utils.get_coverage_groups(ds5)
+    # remove intermediate series from the data structure
+    pfp_ts.RemoveIntermediateSeries(cf, ds5)
 
     return ds5
 
 def l6qc(cf,ds5):
-    ds6 = pfp_io.copy_datastructure(cf,ds5)
+    ds6 = pfp_io.copy_datastructure(cf, ds5)
     # ds6 will be empty (logical false) if an error occurs in copy_datastructure
     # return from this routine if this is the case
     if not ds6: return ds6
@@ -394,7 +398,7 @@ def l6qc(cf,ds5):
     Fc_list = [label for label in ds6.series.keys() if label[0:2] == "Fc"]
     pfp_utils.CheckUnits(ds6, Fc_list, "umol/m2/s", convert_units=True)
     ## apply the turbulence filter (if requested)
-    pfp_ck.ApplyTurbulenceFilter(cf,ds6)
+    pfp_ck.ApplyTurbulenceFilter(cf, ds6)
     # get ER from the observed Fc
     pfp_rp.GetERFromFc(cf, ds6, l6_info)
     # estimate ER using SOLO
@@ -406,7 +410,7 @@ def l6qc(cf,ds5):
     # estimate ER using Lasslop et al
     pfp_rp.ERUsingLasslop(cf, ds6, l6_info)
     # merge the estimates of ER with the observations
-    pfp_ts.MergeSeriesUsingDict(ds6,merge_order="standard")
+    pfp_ts.MergeSeriesUsingDict(ds6, merge_order="standard")
     # calculate NEE from Fc and ER
     pfp_rp.CalculateNEE(cf, ds6, l6_info)
     # calculate NEP from NEE
@@ -419,7 +423,9 @@ def l6qc(cf,ds5):
     pfp_utils.get_coverage_individual(ds6)
     # write the percentage of good data for groups
     pfp_utils.get_coverage_groups(ds6)
+    # remove intermediate series from the data structure
+    pfp_ts.RemoveIntermediateSeries(cf, ds6)
     # do the L6 summary
-    pfp_rp.L6_summary(cf,ds6)
+    pfp_rp.L6_summary(cf, ds6)
 
     return ds6

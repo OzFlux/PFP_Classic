@@ -1,6 +1,8 @@
 import ast
 import datetime
 import logging
+import matplotlib
+matplotlib.use('TkAgg')
 import ntpath
 import os
 import sys

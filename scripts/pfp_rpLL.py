@@ -301,7 +301,7 @@ def plot_LTparams_ER(ldt,ER,ER_LT,LT_results):
     plt.tight_layout()
     plt.draw()
 
-def rpLL_createdict(cf,ds,series):
+def rpLL_createdict(cf, ds, series):
     """
     Purpose:
      Creates a dictionary in ds to hold information about estimating ecosystem
@@ -311,11 +311,13 @@ def rpLL_createdict(cf,ds,series):
     Date April 2016
     """
     # get the section of the control file containing the series
-    section = pfp_utils.get_cfsection(cf,series=series,mode="quiet")
+    section = pfp_utils.get_cfsection(cf, series=series, mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
         logger.error("ERUsingLasslop: Series "+series+" not found in control file, skipping ...")
         return
+    # make the L6 "description" attrubute for the target variable
+    descr_level = "description_" + ds.globalattributes["nc_level"]
     # check that none of the drivers have missing data
     driver_list = ast.literal_eval(cf[section][series]["ERUsingLasslop"]["drivers"])
     target = cf[section][series]["ERUsingLasslop"]["target"]
@@ -349,8 +351,10 @@ def rpLL_createdict(cf,ds,series):
     rpLL_info["window_size_days"] = int(cf[section][series]["ERUsingLasslop"]["window_size_days"])
     # create an empty series in ds if the output series doesn't exist yet
     if rpLL_info["output"] not in ds.series.keys():
-        data,flag,attr = pfp_utils.MakeEmptySeries(ds,rpLL_info["output"])
-        pfp_utils.CreateSeries(ds,rpLL_info["output"],data,flag,attr)
+        data, flag, attr = pfp_utils.MakeEmptySeries(ds, rpLL_info["output"])
+        attr[descr_level] = "Lasslop et al (2010)"
+        attr["group_name"] = "flux"
+        pfp_utils.CreateSeries(ds, rpLL_info["output"], data, flag, attr)
     # create the merge directory in the data structure
     if "merge" not in dir(ds): ds.merge = {}
     if "standard" not in ds.merge.keys(): ds.merge["standard"] = {}

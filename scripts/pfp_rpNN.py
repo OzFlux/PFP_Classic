@@ -371,7 +371,6 @@ def rpFFNET_main(ds, rpFFNET_info,FFNET_gui=None):
     # get the time step and a local pointer to the datetime series
     ts = ds.globalattributes["time_step"]
     ldt = ds.series["DateTime"]["Data"]
-    xldt = ds.series["xlDateTime"]["Data"]
     # get the start and end datetime indices
     si = pfp_utils.GetDateIndex(ldt,startdate,ts=ts,default=0,match="exact")
     ei = pfp_utils.GetDateIndex(ldt,enddate,ts=ts,default=-1,match="exact")
@@ -395,8 +394,8 @@ def rpFFNET_main(ds, rpFFNET_info,FFNET_gui=None):
         fig_num = plt.get_fignums()[-1]
     # loop over the series to be gap filled using ffnet
     for series in ffnet_series:
-        rpFFNET_info["er"][series]["results"]["startdate"].append(xldt[si])
-        rpFFNET_info["er"][series]["results"]["enddate"].append(xldt[ei])
+        rpFFNET_info["er"][series]["results"]["startdate"].append(ldt[si])
+        rpFFNET_info["er"][series]["results"]["enddate"].append(ldt[ei])
         target = rpFFNET_info["er"][series]["target"]
         d,f,a = pfp_utils.GetSeriesasMA(ds,target,si=si,ei=ei)
         if numpy.ma.count(d)<rpFFNET_info["min_points"]:
@@ -846,22 +845,26 @@ def rpFFNET_run_nogui(cf,ds,rpFFNET_info):
     elif FFNET_gui.peropt.get()==5:
         pass
 
-def rpSOLO_createdict(cf,ds,series):
+def rpSOLO_createdict(cf, ds, series):
     """ Creates a dictionary in ds to hold information about the SOLO data used
         to gap fill the tower data."""
     # get the section of the control file containing the series
-    section = pfp_utils.get_cfsection(cf,series=series,mode="quiet")
+    section = pfp_utils.get_cfsection(cf, series=series, mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
-        logger.error("ERUsingSOLO: Series "+series+" not found in control file, skipping ...")
+        logger.error("ERUsingSOLO: Series " + series + " not found in control file, skipping ...")
         return
+    # make the L6 "description" attrubute for the target variable
+    descr_level = "description_" + ds.globalattributes["nc_level"]
+    #ds.series[series]["Attr"][descr_level] = ""
     # check that none of the drivers have missing data
     driver_list = ast.literal_eval(cf[section][series]["ERUsingSOLO"]["drivers"])
     target = cf[section][series]["ERUsingSOLO"]["target"]
     for label in driver_list:
         data,flag,attr = pfp_utils.GetSeriesasMA(ds,label)
-        if numpy.ma.count_masked(data)!=0:
-            logger.error("ERUsingSOLO: driver "+label+" contains missing data, skipping target "+target)
+        if numpy.ma.count_masked(data) != 0:
+            msg = "ERUsingSOLO: driver " + label + " contains missing data, skipping target " + target
+            logger.error(msg)
             return
     # create the dictionary keys for this series
     solo_info = {}
@@ -884,8 +887,9 @@ def rpSOLO_createdict(cf,ds,series):
                             "m_ols":[],"b_ols":[]}
     # create an empty series in ds if the SOLO output series doesn't exist yet
     if solo_info["output"] not in ds.series.keys():
-        data,flag,attr = pfp_utils.MakeEmptySeries(ds,solo_info["output"])
-        pfp_utils.CreateSeries(ds,solo_info["output"],data,flag,attr)
+        data, flag, attr = pfp_utils.MakeEmptySeries(ds, solo_info["output"])
+        attr[descr_level] = "SOLO"
+        pfp_utils.CreateSeries(ds, solo_info["output"], data, flag, attr)
     # create the merge directory in the data structure
     if "merge" not in dir(ds): ds.merge = {}
     if "standard" not in ds.merge.keys(): ds.merge["standard"] = {}
@@ -897,7 +901,7 @@ def rpSOLO_createdict(cf,ds,series):
     ds.merge["standard"][series]["source"] = ast.literal_eval(cf[section][series]["MergeSeries"]["Source"])
     # create an empty series in ds if the output series doesn't exist yet
     if ds.merge["standard"][series]["output"] not in ds.series.keys():
-        data,flag,attr = pfp_utils.MakeEmptySeries(ds,ds.merge["standard"][series]["output"])
+        data, flag, attr = pfp_utils.MakeEmptySeries(ds, ds.merge["standard"][series]["output"])
         pfp_utils.CreateSeries(ds,ds.merge["standard"][series]["output"],data,flag,attr)
     return solo_info
 
@@ -942,7 +946,6 @@ def rpSOLO_main(ds,solo_info,SOLO_gui=None):
     # get the time step and a local pointer to the datetime series
     ts = ds.globalattributes["time_step"]
     ldt = ds.series["DateTime"]["Data"]
-    xldt = ds.series["xlDateTime"]["Data"]
     # get the start and end datetime indices
     si = pfp_utils.GetDateIndex(ldt,startdate,ts=ts,default=0,match="exact")
     ei = pfp_utils.GetDateIndex(ldt,enddate,ts=ts,default=-1,match="exact")
@@ -966,8 +969,8 @@ def rpSOLO_main(ds,solo_info,SOLO_gui=None):
         fig_num = plt.get_fignums()[-1]
     # loop over the series to be gap filled using solo
     for series in solo_series:
-        solo_info["er"][series]["results"]["startdate"].append(xldt[si])
-        solo_info["er"][series]["results"]["enddate"].append(xldt[ei])
+        solo_info["er"][series]["results"]["startdate"].append(ldt[si])
+        solo_info["er"][series]["results"]["enddate"].append(ldt[ei])
         target = solo_info["er"][series]["target"]
         d,f,a = pfp_utils.GetSeriesasMA(ds,target,si=si,ei=ei)
         if numpy.ma.count(d)<solo_info["min_points"]:
@@ -1395,6 +1398,7 @@ def rpSOLO_runseqsolo(ds,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-1):
     '''
     Run SEQSOLO.
     '''
+    descr_level = "description_" + ds.globalattributes["nc_level"]
     # get the number of drivers
     ndrivers = len(driverlist)
     # add an extra column for the target data
@@ -1454,10 +1458,12 @@ def rpSOLO_runseqsolo(ds,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-1):
             ds.series[outputlabel]['Flag'][si:ei+1][goodindex] = numpy.int32(30)
         # set the attributes
         ds.series[outputlabel]["Attr"]["units"] = ds.series[targetlabel]["Attr"]["units"]
-        if "modelled by SOLO" not in ds.series[outputlabel]["Attr"]["long_name"]:
-            ds.series[outputlabel]["Attr"]["long_name"] = "Ecosystem respiration modelled by SOLO (ANN)"
-            ds.series[outputlabel]["Attr"]["comment1"] = "Target was "+str(targetlabel)
-            ds.series[outputlabel]["Attr"]["comment2"] = "Drivers were "+str(driverlist)
+        #if "modelled by SOLO" not in ds.series[outputlabel]["Attr"][descr_level]:
+        ds.series[outputlabel]["Attr"]["long_name"] = "Ecosystem respiration"
+        ds.series[outputlabel]["Attr"][descr_level] = "SOLO (ANN)"
+        ds.series[outputlabel]["Attr"]["group_name"] = "flux"
+        ds.series[outputlabel]["Attr"]["comment1"] = "Target was "+str(targetlabel)
+        ds.series[outputlabel]["Attr"]["comment2"] = "Drivers were "+str(driverlist)
         return 1
     else:
         logger.error(' SOLO_runseqsolo: SEQSOLO did not run correctly, check the SOLO GUI and the log files')

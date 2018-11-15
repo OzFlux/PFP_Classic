@@ -364,6 +364,8 @@ def rpLT_createdict(cf,ds,series):
     if len(section)==0:
         logger.error("ERUsingLloydTaylor: Series "+series+" not found in control file, skipping ...")
         return
+    # make the L6 "description" attrubute for the target variable
+    descr_level = "description_" + ds.globalattributes["nc_level"]
     # check that none of the drivers have missing data
     driver_list = ast.literal_eval(cf[section][series]["ERUsingLloydTaylor"]["drivers"])
     target = cf[section][series]["ERUsingLloydTaylor"]["target"]
@@ -395,8 +397,10 @@ def rpLT_createdict(cf,ds,series):
     rpLT_info["configs_dict"] = get_configs_dict(cf,ds)
     # create an empty series in ds if the output series doesn't exist yet
     if rpLT_info["output"] not in ds.series.keys():
-        data,flag,attr = pfp_utils.MakeEmptySeries(ds,rpLT_info["output"])
-        pfp_utils.CreateSeries(ds,rpLT_info["output"],data,flag,attr)
+        data, flag, attr = pfp_utils.MakeEmptySeries(ds, rpLT_info["output"])
+        attr[descr_level] = "Lloyd-Taylor"
+        attr["group_name"] = "flux"
+        pfp_utils.CreateSeries(ds, rpLT_info["output"], data, flag, attr)
     # create the merge directory in the data structure
     if "merge" not in dir(ds): ds.merge = {}
     if "standard" not in ds.merge.keys(): ds.merge["standard"] = {}

@@ -90,4 +90,37 @@
         remove = Yes
     [[theta]]
         remove = Yes
-    
+    [[Cpd]]
+        remove = Yes
+    [[Cpm]]
+        remove = Yes
+    [[Cpw]]
+        remove = Yes
+    [[esat]]
+        remove = Yes
+    [[Lv]]
+        remove = Yes
+    [[RhoCp]]
+        remove = Yes
+    [[rhod]]
+        remove = Yes
+    [[rhom]]
+        remove = Yes
+    [[rhow]]
+        remove = Yes
+    [[Day]]
+        remove = Yes
+    [[Hdh]]
+        remove = Yes
+    [[Hour]]
+        remove = Yes
+    [[Minute]]
+        remove = Yes
+    [[Month]]
+        remove = Yes
+    [[Second]]
+        remove = Yes
+    [[xlDateTime]]
+        remove = Yes
+    [[Year]]
+        remove = Yes

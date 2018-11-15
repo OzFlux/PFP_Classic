@@ -23,8 +23,27 @@ import xlwt
 import constants as c
 import meteorologicalfunctions as pfp_mf
 import pfp_func
+import pdb
 
 logger = logging.getLogger("pfp_log")
+
+def append_string(attr, string_to_add, caps=True):
+    """
+    Purpose:
+     Format the input attribute string and add it to the attribute.
+    Usage:
+    Side effects:
+    Author: PRI
+    Date: November 2018
+    """
+    if len(attr) == 0:
+        if caps:
+            attr = string_to_add[:1].upper() + string_to_add[1:]
+        else:
+            attr = string_to_add
+    else:
+        attr += ", " + string_to_add
+    return attr
 
 def bp(fx,tao):
     """
@@ -1932,12 +1951,13 @@ def get_datetimefromymdhms(ds):
         logger.info(' get_datetimefromymdhms: unable to find all datetime fields required')
         return
     logger.info(' Getting the date and time series')
-    year = ds.series["Year"]["Data"]
-    month = ds.series["Month"]["Data"]
-    day = ds.series["Day"]["Data"]
-    hour = ds.series["Hour"]["Data"]
-    minute = ds.series["Minute"]["Data"]
-    second = ds.series["Second"]["Data"]
+    #pdb.set_trace()
+    year = ds.series["Year"]["Data"].astype('int')
+    month = ds.series["Month"]["Data"].astype('int')
+    day = ds.series["Day"]["Data"].astype('int')
+    hour = ds.series["Hour"]["Data"].astype('int')
+    minute = ds.series["Minute"]["Data"].astype('int')
+    second = ds.series["Second"]["Data"].astype('int')
     dt = [datetime.datetime(yr,mn,dy,hr,mi,se) for yr,mn,dy,hr,mi,se in zip(year,month,day,hour,minute,second)]
     ds.series["DateTime"] = {}
     ds.series["DateTime"]["Data"] = numpy.array(dt)
@@ -2411,21 +2431,23 @@ def MakeAttributeDictionary(**kwargs):
     Author: PRI
     Date: Back in the day
     """
-    default_list = ["ancillary_variables","height","instrument","long_name","serial_number","standard_name",
-                    "units","valid_range"]
+    #default_list = ["ancillary_variables", "height", "instrument", "long_name", "serial_number",
+                    #"standard_name", "units", "valid_range", "description", "group_name"]
+    default_list = ["height", "instrument", "long_name", "serial_number",
+                    "standard_name", "units", "valid_range", "group_name"]
     attr = {}
     for item in kwargs:
         if isinstance(item, dict):
             for entry in item: attr[entry] = item[entry]
         else:
-            attr[item] = kwargs.get(item,"not defined")
+            attr[item] = kwargs.get(item,"")
         if item in default_list: default_list.remove(item)
     if len(default_list)!=0:
         for item in default_list:
             if item == "valid_range":
                 attr[item] = str(c.small_value)+","+str(c.large_value)
             else:
-                attr[item] = "not defined"
+                attr[item] = ""
     attr["missing_value"] = c.missing_value
     return copy.deepcopy(attr)
 
@@ -2440,20 +2462,22 @@ def make_attribute_dictionary(**kwargs):
     Author: PRI
     Date: Back in the day
     """
-    default_list = ['ancillary_variables', 'height', 'instrument', 'serial_number',
-                    'standard_name', 'long_name', 'units']
+    #default_list = ["ancillary_variables", "height", "instrument", "long_name", "serial_number",
+                    #"standard_name", "units", "valid_range", "description", "group_name"]
+    default_list = ["height", "instrument", "long_name", "serial_number",
+                    "standard_name", "units", "valid_range", "group_name"]
     attr = {}
     for item in kwargs:
         if isinstance(item, dict):
             for entry in item:
                 attr[entry] = item[entry]
         else:
-            attr[item] = kwargs.get(item, 'not defined')
+            attr[item] = kwargs.get(item, "")
         if item in default_list:
             default_list.remove(item)
     if len(default_list) != 0:
         for item in default_list:
-            attr[item] = 'not defined'
+            attr[item] = ""
     attr["missing_value"] = c.missing_value
     return copy.deepcopy(attr)
 
@@ -2520,6 +2544,7 @@ def MergeVariables(ds, out_label, in_labels):
     Author: PRI
     Date: October 2018
     """
+    descr_level = "description_" + ds.globalattributes["nc_level"]
     var_in = GetVariable(ds, in_labels[0])
     var_out = CopyVariable(var_in)
     if len(in_labels) == 1:
@@ -2533,7 +2558,10 @@ def MergeVariables(ds, out_label, in_labels):
         condition = (out_mask == True) & (in_mask == False)
         var_out["Data"] = numpy.ma.where(condition, var_in["Data"], var_out["Data"])
         var_out["Flag"] = numpy.ma.where(condition, var_in["Flag"], var_out["Flag"])
-    var_out["Attr"]["description"] = "Merged from "+str(in_labels)
+    if descr_level in var_out["Attr"]:
+        var_out["Attr"][descr_level] += ", merged from " + str(in_labels)
+    else:
+        var_out["Attr"][descr_level] = "Merged from " + str(in_labels)
     var_out["Label"] = out_label
     return var_out
 

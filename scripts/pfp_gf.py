@@ -57,10 +57,17 @@ def gfalternate_createdict(cf, ds, series, ds_alt):
     # create the alternate directory in the data structure
     if "alternate" not in dir(ds):
         ds.alternate = {}
+    # create the composite list in the data structure
+    if "composite" not in dir(ds):
+        ds.composite = {}
     # name of alternate output series in ds
     output_list = cf[section][series]["GapFillFromAlternate"].keys()
+    # make the L4 "description" attrubute for the target variable
+    descr_level = "description_" + ds.globalattributes["nc_level"]
+    ds.series[series]["Attr"][descr_level] = ""
     # loop over the outputs listed in the control file
     for output in output_list:
+        ds.intermediate.append(output)
         # create the dictionary keys for this output
         ds.alternate[output] = {}
         ds.alternate[output]["label_tower"] = series
@@ -116,8 +123,11 @@ def gfalternate_createdict(cf, ds, series, ds_alt):
                                            "Var (Tower)":[],"Var (Alt)":[],"Var ratio":[]}
         # create an empty series in ds if the alternate output series doesn't exist yet
         if output not in ds.series.keys():
-            data,flag,attr = pfp_utils.MakeEmptySeries(ds,output)
+            data,flag,attr = pfp_utils.MakeEmptySeries(ds, output)
+            attr[descr_level] = ds.alternate[output]["source"]
             pfp_utils.CreateSeries(ds,output,data,flag,attr)
+            ds.intermediate.append(series+"_composite")
+            attr[descr_level] = ""
             pfp_utils.CreateSeries(ds,series+"_composite",data,flag,attr)
 
 def gfalternate_matchstartendtimes(ds,ds_alternate):
@@ -218,10 +228,14 @@ def gfClimatology_createdict(cf, ds, series):
     # create the climatology directory in the data structure
     if "climatology" not in dir(ds):
         ds.climatology = {}
+    # make the L4 "description" attrubute for the target variable
+    descr_level = "description_" + ds.globalattributes["nc_level"]
+    ds.series[series]["Attr"][descr_level] = ""
     # name of alternate output series in ds
     output_list = cf[section][series]["GapFillFromClimatology"].keys()
     # loop over the outputs listed in the control file
     for output in output_list:
+        ds.intermediate.append(output)
         # create the dictionary keys for this output
         ds.climatology[output] = {}
         ds.climatology[output]["label_tower"] = series
@@ -252,6 +266,7 @@ def gfClimatology_createdict(cf, ds, series):
         # create an empty series in ds if the climatology output series doesn't exist yet
         if output not in ds.series.keys():
             data, flag, attr = pfp_utils.MakeEmptySeries(ds, output)
+            attr[descr_level] = "CLI"
             pfp_utils.CreateSeries(ds, output, data, flag, attr)
 
 def gfMDS_createdict(cf, ds, series):
@@ -277,6 +292,7 @@ def gfMDS_createdict(cf, ds, series):
     output_list = cf[section][series]["GapFillUsingMDS"].keys()
     # loop over the outputs listed in the control file
     for output in output_list:
+        ds.intermediate.append(output)
         # create the dictionary keys for this series
         ds.mds[output] = {}
         # get the target
@@ -366,8 +382,12 @@ def gfSOLO_createdict(cf,ds,series):
     if "solo" not in dir(ds): ds.solo = {}
     # name of SOLO output series in ds
     output_list = cf[section][series]["GapFillUsingSOLO"].keys()
+    # make the L5 "description" attrubute for the target variable
+    descr_level = "description_" + ds.globalattributes["nc_level"]
+    ds.series[series]["Attr"][descr_level] = ""
     # loop over the outputs listed in the control file
     for output in output_list:
+        ds.intermediate.append(output)
         # create the dictionary keys for this series
         ds.solo[output] = {}
         # get the target
@@ -396,15 +416,20 @@ def gfSOLO_createdict(cf,ds,series):
                                          "daynight_filter",default="")
         ds.solo[output]["daynight_filter"] = opt
         # results of best fit for plotting later on
-        ds.solo[output]["results"] = {"startdate":[],"enddate":[],"No. points":[],"r":[],
-                                      "Bias":[],"RMSE":[],"Frac Bias":[],"NMSE":[],
-                                      "Avg (obs)":[],"Avg (SOLO)":[],
-                                      "Var (obs)":[],"Var (SOLO)":[],"Var ratio":[],
-                                      "m_ols":[],"b_ols":[]}
+        ds.solo[output]["results"] = {"startdate":[], "enddate":[], "No. points":[], "r":[],
+                                      "Bias":[], "RMSE":[], "Frac Bias":[], "NMSE":[],
+                                      "Avg (obs)":[], "Avg (SOLO)":[],
+                                      "Var (obs)":[], "Var (SOLO)":[], "Var ratio":[],
+                                      "m_ols":[], "b_ols":[]}
         # create an empty series in ds if the SOLO output series doesn't exist yet
         if output not in ds.series.keys():
-            data,flag,attr = pfp_utils.MakeEmptySeries(ds,output)
-            pfp_utils.CreateSeries(ds,output,data,flag,attr)
+            label = ds.solo[output]["label_tower"]
+            data,flag,attr = pfp_utils.MakeEmptySeries(ds, output)
+            for vattr in ["long_name", "group_name", "valid_range", "units", "standard_name"]:
+                if vattr in ds.series[label]["Attr"]:
+                    attr[vattr] = ds.series[label]["Attr"][vattr]
+            attr[descr_level] = "SOLO"
+            pfp_utils.CreateSeries(ds, output, data, flag, attr)
 
 # functions for GapFillUsingMDS: not implemented yet
 def GapFillFluxUsingMDS(cf, ds, series=""):
@@ -453,16 +478,16 @@ def GapFillFromClimatology(ds):
     # remove the "climatology" attribute from ds
     #del ds.climatology
 
-def gfClimatology_interpolateddaily(ds,series,output,xlbooks):
+def gfClimatology_interpolateddaily(ds, series, output, xlbooks):
     """
     Gap fill using data interpolated over a 2D array where the days are
     the rows and the time of day is the columns.
     """
     # gap fill from interpolated 30 minute data
     xlfilename = ds.climatology[output]["file_name"]
-    sheet_name = series+'i(day)'
+    sheet_name = series + 'i(day)'
     if sheet_name not in xlbooks[xlfilename].sheet_names():
-        msg = " gfClimatology: sheet "+sheet_name+" not found, skipping ..."
+        msg = " gfClimatology: sheet " + sheet_name + " not found, skipping ..."
         logger.warning(msg)
         return
     ldt = ds.series["DateTime"]["Data"]
@@ -472,25 +497,25 @@ def gfClimatology_interpolateddaily(ds,series,output,xlbooks):
     nts = thissheet.ncols - 1
     ndays = thissheet.nrows - 2
     # read the time stamp values from the climatology worksheet
-    tsteps = thissheet.row_values(1,start_colx=1,end_colx=nts+1)
+    tsteps = thissheet.row_values(1, start_colx=1, end_colx=nts+1)
     # read the data from the climatology workbook
-    val1d = numpy.ma.zeros(ndays*nts,dtype=numpy.float64)
+    val1d = numpy.ma.zeros(ndays*nts, dtype=numpy.float64)
     # initialise an array for the datetime of the climatological values
     cdt = [None]*nts*ndays
     # loop over the rows (days) of data
     for xlRow in range(ndays):
         # get the Excel datetime value
-        xldatenumber = int(thissheet.cell_value(xlRow+2,0))
+        xldatenumber = int(thissheet.cell_value(xlRow+2, 0))
         # convert this to a Python Datetime
-        xldatetime = basedate+datetime.timedelta(days=xldatenumber+1462*datemode)
+        xldatetime = basedate + datetime.timedelta(days=xldatenumber + 1462 * datemode)
         # fill the climatology datetime array
-        cdt[xlRow*nts:(xlRow+1)*nts] = [xldatetime+datetime.timedelta(hours=hh) for hh in tsteps]
+        cdt[xlRow*nts:(xlRow+1)*nts] = [xldatetime + datetime.timedelta(hours=hh) for hh in tsteps]
         # fill the climatological value array
-        val1d[xlRow*nts:(xlRow+1)*nts] = thissheet.row_values(xlRow+2,start_colx=1,end_colx=nts+1)
+        val1d[xlRow*nts:(xlRow+1)*nts] = thissheet.row_values(xlRow+2, start_colx=1, end_colx=nts+1)
     # get the data to be filled with climatological values
-    data,flag,attr = pfp_utils.GetSeriesasMA(ds,series)
+    data, flag, attr = pfp_utils.GetSeriesasMA(ds, series)
     # get an index of missing values
-    idx = numpy.where(numpy.ma.getmaskarray(data)==True)[0]
+    idx = numpy.where(numpy.ma.getmaskarray(data) == True)[0]
     #idx = numpy.ma.where(numpy.ma.getmaskarray(data)==True)[0]
     # there must be a better way to do this ...
     # simply using the index (idx) to set a slice of the data array to the gap filled values in val1d
@@ -509,21 +534,27 @@ def gfClimatology_interpolateddaily(ds,series,output,xlbooks):
             data[ii] = numpy.float64(c.missing_value)
             flag[ii] = numpy.int32(41)
     # put the gap filled data back into the data structure
-    pfp_utils.CreateSeries(ds,output,data,flag,attr)
+    #pfp_utils.CreateSeries(ds, output, data, flag, attr)
+    ds.series[output]["Data"] = data
+    ds.series[output]["Flag"] = flag
+    return
 
-def gfClimatology_monthly(ds,series,output,xlbook):
+def gfClimatology_monthly(ds, series, output, xlbook):
     """ Gap fill using monthly climatology."""
+    dt = ds.series['DateTime']['Data']
+    Hdh = numpy.array([d.hour+d.minute/float(60) for d in dt])
+    Month = numpy.array([d.month for d in dt])    
     thissheet = xlbook.sheet_by_name(series)
     val1d = numpy.zeros_like(ds.series[series]['Data'])
-    values = numpy.zeros([48,12])
-    for month in range(1,13):
+    values = numpy.zeros([48, 12])
+    for month in range(1, 13):
         xlCol = (month-1)*5 + 2
         values[:,month-1] = thissheet.col_values(xlCol)[2:50]
     for i in range(len(ds.series[series]['Data'])):
-        h = numpy.int(2*ds.series['Hdh']['Data'][i])
-        m = numpy.int(ds.series['Month']['Data'][i])
-        val1d[i] = values[h,m-1]
-    index = numpy.where(abs(ds.series[output]['Data']-c.missing_value)<c.eps)[0]
+        h = numpy.int(2*Hdh[i])
+        m = numpy.int(Month[i])
+        val1d[i] = values[h, m-1]
+    index = numpy.where(abs(ds.series[output]['Data'] - c.missing_value) < c.eps)[0]
     ds.series[output]['Data'][index] = val1d[index]
     ds.series[output]['Flag'][index] = numpy.int32(40)
 

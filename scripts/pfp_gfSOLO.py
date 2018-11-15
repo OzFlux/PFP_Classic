@@ -279,7 +279,7 @@ def gfSOLO_main(dsa,dsb,solo_info,output_list=[]):
     # get the time step and a local pointer to the datetime series
     ts = dsb.globalattributes["time_step"]
     ldt = dsb.series["DateTime"]["Data"]
-    xldt = dsb.series["xlDateTime"]["Data"]
+    #xldt = dsb.series["xlDateTime"]["Data"]
     # get the start and end datetime indices
     si = pfp_utils.GetDateIndex(ldt,startdate,ts=ts,default=0,match="exact")
     ei = pfp_utils.GetDateIndex(ldt,enddate,ts=ts,default=len(ldt)-1,match="exact")
@@ -317,8 +317,8 @@ def gfSOLO_main(dsa,dsb,solo_info,output_list=[]):
                     if driver in dsb.merge[mlist]:
                         srclist = dsb.merge[mlist][driver]["source"]
                 pfp_ts.do_mergeseries(dsb,driver,srclist,mode="quiet")
-        dsb.solo[output]["results"]["startdate"].append(xldt[si])
-        dsb.solo[output]["results"]["enddate"].append(xldt[ei])
+        dsb.solo[output]["results"]["startdate"].append(ldt[si])
+        dsb.solo[output]["results"]["enddate"].append(ldt[ei])
         d,f,a = pfp_utils.GetSeriesasMA(dsb,series,si=si,ei=ei)
         if numpy.ma.count(d)<solo_info["min_points"]:
             logger.warning("gfSOLO: Less than "+str(solo_info["min_points"])+" points available for series "+series+" ...")
@@ -366,22 +366,22 @@ def gfSOLO_main(dsa,dsb,solo_info,output_list=[]):
     if 'GapFillUsingSOLO' not in dsb.globalattributes['Functions']:
         dsb.globalattributes['Functions'] = dsb.globalattributes['Functions']+', GapFillUsingSOLO'
 
-def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=-1):
+def gfSOLO_plot(pd, dsa, dsb, driverlist, targetlabel, outputlabel, solo_info, si=0, ei=-1):
     """ Plot the results of the SOLO run. """
     # get the time step
     ts = int(dsb.globalattributes['time_step'])
     # get a local copy of the datetime series
     xdt = dsb.series["DateTime"]["Data"][si:ei+1]
-    Hdh,f,a = pfp_utils.GetSeriesasMA(dsb,'Hdh',si=si,ei=ei)
+    Hdh = numpy.array([d.hour+d.minute/float(60) for d in xdt])
     # get the observed and modelled values
-    obs,f,a = pfp_utils.GetSeriesasMA(dsb,targetlabel,si=si,ei=ei)
-    mod,f,a = pfp_utils.GetSeriesasMA(dsb,outputlabel,si=si,ei=ei)
+    obs, f, a = pfp_utils.GetSeriesasMA(dsb, targetlabel, si=si, ei=ei)
+    mod, f, a = pfp_utils.GetSeriesasMA(dsb, outputlabel, si=si, ei=ei)
     # make the figure
     if solo_info["show_plots"]:
         plt.ion()
     else:
         plt.ioff()
-    fig = plt.figure(pd["fig_num"],figsize=(13,8))
+    fig = plt.figure(pd["fig_num"], figsize=(13, 8))
     fig.clf()
     fig.canvas.set_window_title(targetlabel)
     plt.figtext(0.5,0.95,pd["title"],ha='center',size=16)
@@ -576,15 +576,14 @@ def gfSOLO_plotsummary(ds,solo_info):
     # datetimes are stored in ds.alternate as Excel datetimes, here we convert to Python datetimes
     # for ease of handling and plotting.
     # start datetimes of the periods compared first
-    basedate = datetime.datetime(1899, 12, 30)
     dt_start = []
-    for xldt in ds.solo[label_list[0]]["results"]["startdate"]:
-        dt_start.append(basedate+datetime.timedelta(days=xldt+1462*datemode))
+    for dt in ds.solo[label_list[0]]["results"]["startdate"]:
+        dt_start.append(dt)
     startdate = min(dt_start)
     # and then the end datetimes
     dt_end = []
-    for xldt in ds.solo[label_list[0]]["results"]["enddate"]:
-        dt_end.append(basedate+datetime.timedelta(days=xldt+1462*datemode))
+    for dt in ds.solo[label_list[0]]["results"]["enddate"]:
+        dt_end.append(dt)
     enddate = max(dt_end)
     # get the major tick locator and label format
     MTLoc = mdt.AutoDateLocator(minticks=3,maxticks=5)
@@ -949,10 +948,11 @@ def gfSOLO_runseqsolo(dsa,dsb,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-
             dsb.series[outputlabel]['Data'][si:ei+1][goodindex] = seqdata[:,1]
             dsb.series[outputlabel]['Flag'][si:ei+1][goodindex] = numpy.int32(30)
         # set the attributes
-        if targetlabel in dsa.series.keys():
-            for attr in dsa.series[targetlabel]["Attr"].keys():
-                dsb.series[outputlabel]["Attr"][attr] = dsa.series[targetlabel]["Attr"][attr]
-        dsb.series[outputlabel]["Attr"]["long_name"] = dsb.series[outputlabel]["Attr"]["long_name"]+", modeled by SOLO"
+        # PRI 9/11/2018 - attributes set in pfp_gf.gfSOLO_createdict()
+        #if targetlabel in dsa.series.keys():
+            #for attr in dsa.series[targetlabel]["Attr"].keys():
+                #dsb.series[outputlabel]["Attr"][attr] = dsa.series[targetlabel]["Attr"][attr]
+        #dsb.series[outputlabel]["Attr"]["long_name"] = dsb.series[outputlabel]["Attr"]["long_name"]+", modeled by SOLO"
         return 1
     else:
         logger.error(' gfSOLO_runseqsolo: SEQSOLO did not run correctly, check the SOLO GUI and the log files')

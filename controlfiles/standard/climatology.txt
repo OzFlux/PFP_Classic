@@ -5,7 +5,7 @@
         Format = "0.00"
     [[RH]]
         Format = "0"
-    [[q]]
+    [[SH]]
         Format = "0.0000"
     [[CO2]]
         Format = "0.0"

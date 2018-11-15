@@ -26,12 +26,12 @@ def change_variable_names(cfg, ds):
     Date: October 2018
     """
     # get a list of potential mappings
-    rename_list = [v for v in list(cfg["Variables"].keys()) if "rename" in cfg["Variables"][v]]
+    rename_list = [v for v in list(cfg["rename"].keys())]
     # loop over the variables in the data structure
     series_list = list(ds.series.keys())
     for label in series_list:
         if label in rename_list:
-            new_name = cfg["Variables"][label]["rename"]
+            new_name = cfg["rename"][label]["rename"]
             ds.series[new_name] = ds.series.pop(label)
     return
 
@@ -55,7 +55,7 @@ def copy_ws_wd(ds):
             ds.series["Ws"]["Attr"]["long_name"] = "Wind speed (copied from Ws_SONIC_Av)"
     return
 
-def remove_variables(cfg, ds):
+def exclude_variables(cfg, ds):
     """
     Purpose:
      Remove deprecated variables from a netCDF file.
@@ -63,12 +63,37 @@ def remove_variables(cfg, ds):
     Author: PRI
     Date: October 2018
     """
-    remove_list = [v for v in list(cfg["Variables"].keys()) if "remove" in cfg["Variables"][v]]
     series_list = sorted(list(ds.series.keys()))
+    var_list = [v for v in list(cfg["exclude"].keys())]
+    flag_list = [v+"_QCFlag" for v in var_list if v+"_QCFlag" in series_list]
+    remove_list = var_list + flag_list
     for label in series_list:
         if label in remove_list:
             ds.series.pop(label)
     return
+
+def include_variables(cfg, ds_in):
+    """
+    Purpose:
+     Only pick variables that match the specified string for the length
+     of the specified string.
+    Usage:
+    Author: PRI
+    Date: November 2018
+    """
+    # get a new data structure
+    ds_out = pfp_io.DataStructure()
+    # copy the global attributes
+    for gattr in ds_in.globalattributes:
+        ds_out.globalattributes[gattr] = ds_in.globalattributes[gattr]
+    # loop over variables to be included
+    include_list = list(cfg["include"].keys())
+    series_list = list(ds_in.series.keys())
+    for item in include_list:
+        for label in series_list:
+            if label[0:len(item)] == item:
+                ds_out.series[label] = ds_in.series[label]
+    return ds_out
 
 def change_global_attributes(cfg, ds):
     """
@@ -81,7 +106,7 @@ def change_global_attributes(cfg, ds):
     # check site_name is in ds.globalattributes
     gattr_list = list(ds.globalattributes.keys())
     if "site_name" not in gattr_list:
-        print "Globel attributes: site_name not found"
+        print "Global attributes: site_name not found"
     # check latitude and longitude are in ds.globalattributes
     if "latitude" not in gattr_list:
         print "Global attributes: latitude not found"
@@ -140,17 +165,56 @@ def change_global_attributes(cfg, ds):
             ds.globalattributes[new_key] = ds.globalattributes.pop(item)
     return
 
-cfg_name = os.path.join("..", "controlfiles", "standard", "map_old_to_new.txt")
+def change_variable_attributes(cfg, ds):
+    """
+    Purpose:
+     Clean up the variable attributes.
+    Usage:
+    Author: PRI
+    Date: November 2018
+    """
+    # rename existing long_name to description, introduce a
+    # consistent long_name attribute and introduce the group_name
+    # attribute
+    vattr_list = list(cfg["variable_attributes"])
+    series_list = list(ds.series.keys())
+    descr = "description_" + ds.globalattributes["nc_level"]
+    for item in vattr_list:
+        for label in series_list:
+            if label[0:len(item)] == item:
+                long_name = cfg["variable_attributes"][item]["long_name"]
+                group_name = cfg["variable_attributes"][item]["group_name"]
+                ln_parts = long_name.split(" ")
+                d = ds.series[label]["Attr"]
+                d[descr] = copy.deepcopy(d["long_name"])
+                d["long_name"] = long_name
+                d["group_name"] = group_name
+    # remove deprecated variable attributes
+    deprecated_attributes = ["ancillary_variables"]
+    series_list = list(ds.series.keys())
+    for label in series_list:
+        for vattr in deprecated_attributes:
+            if vattr in ds.series[label]["Attr"]:
+                del ds.series[label]["Attr"][vattr]
+    return
+
+cfg_name = os.path.join("..", "controlfiles", "standard", "nc_cleanup.txt")
 if os.path.exists(cfg_name):
     cfg = ConfigObj(cfg_name)
 else:
     print " 'map_old_to_new' control file not found"
 
 rp = os.path.join(os.sep, "mnt", "OzFlux", "Sites")
-sites = sorted([d for d in os.listdir(rp) if os.path.isdir(os.path.join(rp,d))])
-
+#sites = sorted([d for d in os.listdir(rp) if os.path.isdir(os.path.join(rp,d))])
+sites = ["AdelaideRiver", "AliceSpringsMulga", "Calperum", "CapeTribulation", "CowBay", "CumberlandPlain",
+         "DalyPasture", "DalyUncleared", "DryRiver", "Emerald", "FoggDam", "Gingin", "GreatWesternWoodlands",
+         "HowardSprings", "Litchfield", "Loxton", "Otway", "RedDirtMelonFarm", "Ridgefield", "RiggsCreek",
+         "RobsonCreek", "Samford", "SturtPlains", "TiTreeEast", "Tumbarumba", "WallabyCreek", "Warra",
+         "Whroo", "WombatStateForest", "Yanco"]
+#sites = ["Calperum"]
 for site in sites:
     sp = os.path.join(rp, site, "Data", "Portal")
+    op = os.path.join(rp, site, "Data", "Processed")
     if not os.path.isdir(sp):
         print sp+" , skipping site ..."
         continue
@@ -159,12 +223,15 @@ for site in sites:
         print "No files found in "+sp+" , skipping ..."
         continue
     for file in files:
-        fp = os.path.join(sp, file)
+        ifp = os.path.join(sp, file)
         print "Converting "+file
-        ds = pfp_io.nc_read_series(fp)
-        change_variable_names(cfg, ds)
-        copy_ws_wd(ds)
-        remove_variables(cfg, ds)
-        change_global_attributes(cfg, ds)
-        nf = pfp_io.nc_open_write(fp)
-        pfp_io.nc_write_series(nf, ds)
+        ds1 = pfp_io.nc_read_series(ifp)
+        change_variable_names(cfg, ds1)
+        copy_ws_wd(ds1)
+        ds2 = include_variables(cfg, ds1)
+        exclude_variables(cfg, ds2)
+        change_global_attributes(cfg, ds2)
+        change_variable_attributes(cfg, ds2)
+        ofp = os.path.join(op, file)
+        nf = pfp_io.nc_open_write(ofp)
+        pfp_io.nc_write_series(nf, ds2)

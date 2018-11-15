@@ -37,13 +37,16 @@ def CalculateET(ds):
     Author: PRI
     Date: June 2015
     """
+    descr_level = "description_" + ds.globalattributes["nc_level"]
     ts = int(ds.globalattributes["time_step"])
     series_list = ds.series.keys()
     Fe_list = [item for item in series_list if "Fe" in item[0:2]]
     for label in Fe_list:
         Fe,flag,attr = pfp_utils.GetSeriesasMA(ds,label)
         ET = Fe*ts*60/c.Lv
-        attr["long_name"] = "Evapo-transpiration calculated from latent heat flux"
+        attr["long_name"] = "Evapo-transpiration"
+        attr[descr_level] = "Calculated from latent heat flux"
+        attr["group_name"] = "flux"
         attr["units"] = "mm"
         pfp_utils.CreateSeries(ds,label.replace("Fe","ET"),ET,flag,attr)
 
@@ -61,38 +64,41 @@ def CalculateNEE(cf, ds, info):
     Author: PRI
     Date: August 2014
     """
-    if "nee" not in info: return
-    # get the Fsd and ustar thresholds
-    Fsd_threshold = float(pfp_utils.get_keyvaluefromcf(cf,["Params"],"Fsd_threshold",default=10))
-    # get the incoming shortwave radiation and friction velocity
-    Fsd,Fsd_flag,Fsd_attr = pfp_utils.GetSeriesasMA(ds,"Fsd")
+    if "nee" not in info:
+        return
+    # get the description attribute
+    descr_level = "description_" + ds.globalattributes["nc_level"]
+    # get the Fsd threshold
+    Fsd_threshold = float(pfp_utils.get_keyvaluefromcf(cf, ["Params"], "Fsd_threshold", default=10))
+    # get the incoming shortwave radiation
+    Fsd, Fsd_flag, Fsd_attr = pfp_utils.GetSeriesasMA(ds, "Fsd")
     if "Fsd_syn" in ds.series.keys():
-        Fsd_syn,flag,attr = pfp_utils.GetSeriesasMA(ds,"Fsd_syn")
-        index = numpy.where(numpy.ma.getmaskarray(Fsd)==True)[0]
-        #index = numpy.ma.where(numpy.ma.getmaskarray(Fsd)==True)[0]
+        Fsd_syn, flag, attr = pfp_utils.GetSeriesasMA(ds, "Fsd_syn")
+        index = numpy.where(numpy.ma.getmaskarray(Fsd) == True)[0]
         Fsd[index] = Fsd_syn[index]
-    ustar,ustar_flag,ustar_attr = pfp_utils.GetSeriesasMA(ds,"ustar")
     for label in info["nee"].keys():
-        if "Fc" not in info["nee"][label] and "ER" not in info["nee"][label]: continue
+        if "Fc" not in info["nee"][label] and "ER" not in info["nee"][label]:
+            continue
         Fc_label = info["nee"][label]["Fc"]
         ER_label = info["nee"][label]["ER"]
         output_label = info["nee"][label]["output"]
-        Fc,Fc_flag,Fc_attr = pfp_utils.GetSeriesasMA(ds,Fc_label)
-        ER,ER_flag,ER_attr = pfp_utils.GetSeriesasMA(ds,ER_label)
+        Fc, Fc_flag, Fc_attr = pfp_utils.GetSeriesasMA(ds, Fc_label)
+        ER, ER_flag, ER_attr = pfp_utils.GetSeriesasMA(ds, ER_label)
         # put the day time Fc into the NEE series
-        index = numpy.ma.where(Fsd>=Fsd_threshold)[0]
+        index = numpy.ma.where(Fsd >= Fsd_threshold)[0]
         ds.series[output_label]["Data"][index] = Fc[index]
         ds.series[output_label]["Flag"][index] = Fc_flag[index]
         # put the night time ER into the NEE series
-        index = numpy.ma.where(Fsd<Fsd_threshold)[0]
+        index = numpy.ma.where(Fsd < Fsd_threshold)[0]
         ds.series[output_label]["Data"][index] = ER[index]
         ds.series[output_label]["Flag"][index] = ER_flag[index]
         # copy the attributes
         attr = ds.series[output_label]["Attr"]
         attr["units"] = Fc_attr["units"]
-        attr["long_name"] = "Net Ecosystem Exchange calculated from "+Fc_label+" (Fc)"
-        attr["long_name"] = attr["long_name"]+" and "+ER_label+" (ER)"
-        attr["comment1"] = "Fsd threshold used was "+str(Fsd_threshold)
+        attr["long_name"] = "Net ecosystem exchange"
+        attr[descr_level] = "Calculated from " + Fc_label + " and " + ER_label
+        attr["group_name"] = "flux"
+        attr["comment1"] = "Fsd threshold used was " + str(Fsd_threshold)
     return
 
 def CalculateNEP(cf, ds):
@@ -108,12 +114,15 @@ def CalculateNEP(cf, ds):
     Author: PRI
     Date: May 2015
     """
+    descr_level = "description_" + ds.globalattributes["nc_level"]
     for nee_name in cf["NEE"].keys():
-        nep_name = nee_name.replace("NEE","NEP")
-        nee,flag,attr = pfp_utils.GetSeriesasMA(ds,nee_name)
-        nep = float(-1)*nee
-        attr["long_name"] = "Net Ecosystem Productivity calculated as -1*"+nee_name
-        pfp_utils.CreateSeries(ds,nep_name,nep,flag,attr)
+        nep_name = nee_name.replace("NEE", "NEP")
+        nee, flag, attr = pfp_utils.GetSeriesasMA(ds, nee_name)
+        nep = float(-1) * nee
+        attr["long_name"] = "Net ecosystem productivity"
+        attr[descr_level] = "Calculated as -1*" + nee_name
+        attr["group_name"] = "flux"
+        pfp_utils.CreateSeries(ds, nep_name, nep,flag, attr)
 
 def cleanup_ustar_dict(ldt,ustar_dict):
     """
@@ -195,6 +204,7 @@ def ERUsingLasslop(cf, ds, info):
     """
     if "rpLL" not in info["er"]: return
     logger.info("Estimating ER using Lasslop")
+    descr_level = "description_" + ds.globalattributes["nc_level"]
     # these should be read from the control file
     series = info["er"]["rpLL"].keys()
     info = {"window_length":int(info["er"]["rpLL"][series[0]]["window_size_days"]),
@@ -307,17 +317,21 @@ def ERUsingLasslop(cf, ds, info):
     attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units=units)
     flag = numpy.zeros(len(rb),dtype=numpy.int32)
     pfp_utils.CreateSeries(ds,"rb_LL",rb,flag,attr)
+    ds.intermediate.append("rb_LL")
     E0 = LL_results["E0_tts"]
     units = "C"
     long_name = "Activation energy from Lloyd-Taylor method used in Lasslop et al (2010)"
     attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units=units)
     pfp_utils.CreateSeries(ds,"E0_LL",E0,flag,attr)
+    ds.intermediate.append("E0_LL")
     logger.info(" Calculating ER using Lloyd-Taylor with Lasslop parameters")
     ER_LL = pfp_rpLL.ER_LloydTaylor(T,rb,E0)
     # write ecosystem respiration modelled by Lasslop et al (2010)
     units = Fc_attr["units"]
-    long_name = "Ecosystem respiration modelled by Lasslop et al (2010)"
+    long_name = "Ecosystem respiration"
     attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units=units)
+    attr[descr_level] = "Lasslop et al (2010)"
+    attr["group_name"] = "flux"
     pfp_utils.CreateSeries(ds,"ER_LL_all",ER_LL,flag,attr)
     # parameters associated with GPP and GPP itself
     alpha = LL_results["alpha_tts"]
@@ -325,27 +339,34 @@ def ERUsingLasslop(cf, ds, info):
     long_name = "Canopy light use efficiency"
     attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units=units)
     pfp_utils.CreateSeries(ds,"alpha_LL",alpha,flag,attr)
+    ds.intermediate.append("alpha_LL")
     beta = LL_results["beta_tts"]
     units = "umol/m2/s"
     long_name = "Maximum CO2 uptake at light saturation"
     attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units=units)
     pfp_utils.CreateSeries(ds,"beta_LL",beta,flag,attr)
+    ds.intermediate.append("beta_LL")
     k = LL_results["k_tts"]
     units = "none"
     long_name = "Sensitivity of response to VPD"
     attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units=units)
     pfp_utils.CreateSeries(ds,"k_LL",k,flag,attr)
+    ds.intermediate.append("k_LL")
     GPP_LL = pfp_rpLL.GPP_RHLRC_D(Fsd,D,alpha,beta,k,D0)
     units = "umol/m2/s"
-    long_name = "GPP modelled by Lasslop et al (2010)"
+    long_name = "Gross primary productivity"
     attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units=units)
+    attr[descr_level] = "Lasslop et al (2010)"
+    attr["group_name"] = "flux"
     pfp_utils.CreateSeries(ds,"GPP_LL_all",GPP_LL,flag,attr)
     # NEE
     data = {"Fsd":Fsd,"T":T,"D":D}
     NEE_LL = pfp_rpLL.NEE_RHLRC_D(data,alpha,beta,k,D0,rb,E0)
     units = "umol/m2/s"
-    long_name = "NEE modelled by Lasslop et al (2010)"
+    long_name = "Net ecosystem exchange"
     attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units=units)
+    attr[descr_level] = "Lasslop et al (2010)"
+    attr["group_name"] = "flux"
     pfp_utils.CreateSeries(ds,"NEE_LL_all",NEE_LL,flag,attr)
     # plot the respiration estimated using Lasslop et al
     # set the figure number
@@ -368,10 +389,13 @@ def ERUsingLloydTaylor(cf, ds, info):
     Author: IMcH, PRI
     Date: October 2015
     """
-    if "rpLT" not in info["er"]: return
+    if "rpLT" not in info["er"]:
+        return
     logger.info("Estimating ER using Lloyd-Taylor")
-    long_name = "Ecosystem respiration modelled by Lloyd-Taylor"
+    descr_level = "description_" + ds.globalattributes["nc_level"]
+    long_name = "Ecosystem respiration"
     ER_attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,units="umol/m2/s")
+    ER_attr[descr_level] = "Lloyd-Taylor"
     ts = int(ds.globalattributes["time_step"])
     site_name = ds.globalattributes["site_name"]
     ldt = ds.series["DateTime"]["Data"]
@@ -621,6 +645,7 @@ def GetERFromFc(cf, ds, info):
     """
     ldt = ds.series["DateTime"]["Data"]
     ts = int(ds.globalattributes["time_step"])
+    descr_level = "description_" + ds.globalattributes["nc_level"]
     # get the data
     Fsd,Fsd_flag,Fsd_attr = pfp_utils.GetSeriesasMA(ds,"Fsd")
     if "solar_altitude" not in ds.series.keys(): pfp_ts.get_synthetic_fsd(ds)
@@ -637,9 +662,11 @@ def GetERFromFc(cf, ds, info):
             Fc = pfp_utils.GetVariable(ds, source)
             # get a copy of the Fc flag and make the attribute dictionary
             ER["Flag"] = numpy.array(Fc["Flag"])
-            long_name = "Ecosystem respiration (observed) derived from "+source
+            long_name = "Ecosystem respiration"
             units = Fc["Attr"]["units"]
             ER["Attr"] = pfp_utils.MakeAttributeDictionary(long_name=long_name, units=units)
+            ER["Attr"][descr_level] =  "Observed, derived from " + source
+            ER["Attr"]["group_name"] = "flux"
             # only accept Fc with QC flag value of 0
             Fc["Data"] = numpy.ma.masked_where((Fc["Flag"] != 0), Fc["Data"])
             idx_notok = numpy.where((Fc["Flag"] != 0))[0]
@@ -1108,39 +1135,62 @@ def L6_summary(cf, ds):
     except IOError:
         logger.error(" L6_summary: error opening Excel file "+xl_name)
         return 0
-    # open the netCDF file for the summary results
+    # open the netCDF files for the summary results
+    # all data as groups in one netCDF4 file
     nc_name = out_name.replace(".nc", "_Summary.nc")
-    try:
-        nc_file = pfp_io.nc_open_write(nc_name, nctype='NETCDF4')
-        pfp_io.nc_write_globalattributes(nc_file, ds, flag_defs=False)
-    except IOError:
-        logger.error(" L6_summary: error opening netCDF file "+nc_name)
-        return 0
-    # daily averages and totals
+    nc_summary = pfp_io.nc_open_write(nc_name, nctype='NETCDF4')
+    pfp_io.nc_write_globalattributes(nc_summary, ds, flag_defs=False)
+    # daily averages and totals, all variables
     daily_dict = L6_summary_daily(ds, series_dict)
     L6_summary_write_xlfile(xl_file, "Daily (all)", daily_dict)
-    L6_summary_write_ncfile(nc_file, "Daily_all", daily_dict)
-    #flag_dict = L6_summary_daily_flag(ds,series_dict)
+    # combined netCDF summary file
+    nc_group = nc_summary.createGroup("Daily")
+    L6_summary_write_ncfile(nc_group, daily_dict)
+    # separate daily file
+    nc_daily = pfp_io.nc_open_write(out_name.replace(".nc", "_Daily.nc"))
+    pfp_io.nc_write_globalattributes(nc_daily, ds, flag_defs=False)
+    L6_summary_write_ncfile(nc_daily, daily_dict)
+    nc_daily.close()
+    # daily averages and totals, CO2 and H2O fluxes only
     fluxes_dict = L6_summary_co2andh2o_fluxes(ds, series_dict, daily_dict)
     L6_summary_write_xlfile(xl_file, "Daily (CO2,H2O)", fluxes_dict)
-    L6_summary_write_ncfile(nc_file, "Daily_CO2_H2O", fluxes_dict)
     # monthly averages and totals
     monthly_dict = L6_summary_monthly(ds, series_dict)
     L6_summary_write_xlfile(xl_file, "Monthly", monthly_dict)
-    L6_summary_write_ncfile(nc_file, "Monthly", monthly_dict)
+    # combined netCDF summary file
+    nc_group = nc_summary.createGroup("Monthly")
+    L6_summary_write_ncfile(nc_group, monthly_dict)
+    # separate monthly file
+    nc_monthly = pfp_io.nc_open_write(out_name.replace(".nc", "_Monthly.nc"))
+    pfp_io.nc_write_globalattributes(nc_monthly, ds, flag_defs=False)
+    L6_summary_write_ncfile(nc_monthly, monthly_dict)
+    nc_monthly.close()
     # annual averages and totals
     annual_dict = L6_summary_annual(ds, series_dict)
     L6_summary_write_xlfile(xl_file, "Annual", annual_dict)
-    L6_summary_write_ncfile(nc_file, "Annual", annual_dict)
+    # combined netCDF summary file
+    nc_group = nc_summary.createGroup("Annual")
+    L6_summary_write_ncfile(nc_group, annual_dict)
+    # separate annual file
+    nc_annual = pfp_io.nc_open_write(out_name.replace(".nc", "_Annual.nc"))
+    pfp_io.nc_write_globalattributes(nc_annual, ds, flag_defs=False)
+    L6_summary_write_ncfile(nc_annual, annual_dict)
+    nc_annual.close()
     # cumulative totals
     cumulative_dict = L6_summary_cumulative(ds, series_dict)
     for year in cumulative_dict.keys():
         L6_summary_write_xlfile(xl_file, "Cummulative("+str(year)+")", cumulative_dict[str(year)])
-        L6_summary_write_ncfile(nc_file, "Cummulative_"+str(year), cumulative_dict[str(year)])
+        nc_group = nc_summary.createGroup("Cummulative_"+str(year))
+        L6_summary_write_ncfile(nc_group, cumulative_dict[str(year)])
+    # separate cumulative file
+    nc_cumulative = pfp_io.nc_open_write(out_name.replace(".nc", "_Cumulative.nc"))
+    pfp_io.nc_write_globalattributes(nc_cumulative, ds, flag_defs=False)
+    L6_summary_write_ncfile(nc_cumulative, cumulative_dict["all"])
+    nc_cumulative.close()
     # close the Excel workbook
     xl_file.save(xl_name)
-    # close the netCDF file
-    nc_file.close()
+    # close the summary netCDF file
+    nc_summary.close()
     # plot the daily averages and sums
     L6_summary_plotdaily(cf, ds, daily_dict)
     # plot the cumulative sums
@@ -1362,10 +1412,10 @@ def L6_summary_createseriesdict(cf,ds):
     sdl = series_dict["lists"]
     sdl["nee"] = [item for item in cf["NEE"].keys() if "NEE" in item[0:3] and item in ds.series.keys()]
     sdl["gpp"] = [item for item in cf["GPP"].keys() if "GPP" in item[0:3] and item in ds.series.keys()]
-    sdl["fre"] = [item for item in cf["ER"].keys() if "ER" in item[0:2] and item in ds.series.keys()]
+    sdl["er"] = [item for item in cf["ER"].keys() if "ER" in item[0:2] and item in ds.series.keys()]
     sdl["nep"] = [item.replace("NEE","NEP") for item in sdl["nee"]]
     sdl["nep"] = [item for item in sdl["nep"] if item in ds.series.keys()]
-    sdl["co2"] = sdl["nee"]+sdl["nep"]+sdl["gpp"]+sdl["fre"]
+    sdl["co2"] = sdl["nee"]+sdl["nep"]+sdl["gpp"]+sdl["er"]
     for item in sdl["co2"]:
         series_dict["daily"][item] = {}
         series_dict["cumulative"][item] = {}
@@ -1381,8 +1431,8 @@ def L6_summary_createseriesdict(cf,ds):
         series_dict["cumulative"][item] = {"operator":"sum","format":"0.00"}
     if "Ah" in ds.series.keys():
         series_dict["daily"]["Ah"] = {"operator":"average","format":"0.00"}
-    if "Cc" in ds.series.keys():
-        series_dict["daily"]["Cc"] = {"operator":"average","format":"0.0"}
+    if "CO2" in ds.series.keys():
+        series_dict["daily"]["CO2"] = {"operator":"average","format":"0.0"}
     if "Fc" in ds.series.keys():
         series_dict["daily"]["Fc"] = {"operator":"average","format":"0.00"}
     if "Fe" in ds.series.keys():
@@ -1403,8 +1453,8 @@ def L6_summary_createseriesdict(cf,ds):
         series_dict["daily"]["Flu"] = {"operator":"average","format":"0.0"}
     if "ps" in ds.series.keys():
         series_dict["daily"]["ps"] = {"operator":"average","format":"0.00"}
-    if "q" in ds.series.keys():
-        series_dict["daily"]["q"] = {"operator":"average","format":"0.0000"}
+    if "SH" in ds.series.keys():
+        series_dict["daily"]["SH"] = {"operator":"average","format":"0.0000"}
     if "RH" in ds.series.keys():
         series_dict["daily"]["RH"] = {"operator":"average","format":"0"}
     if "Sws" in ds.series.keys():
@@ -1415,6 +1465,8 @@ def L6_summary_createseriesdict(cf,ds):
         series_dict["daily"]["Ts"] = {"operator":"average","format":"0.00"}
     if "ustar" in ds.series.keys():
         series_dict["daily"]["ustar"] = {"operator":"average","format":"0.00"}
+    if "VP" in ds.series.keys():
+        series_dict["daily"]["VP"] = {"operator":"average","format":"0.00"}
     if "Ws" in ds.series.keys():
         series_dict["daily"]["Ws"] = {"operator":"average","format":"0.00"}
     series_dict["annual"] = series_dict["daily"]
@@ -1477,6 +1529,15 @@ def L6_summary_daily(ds, series_dict):
             continue
         # add the format to be used
         daily_dict["variables"][item]["attr"]["format"] = series_dict["daily"][item]["format"]
+        # copy some of the variable attributes
+        default_list = ["long_name", "standard_name", "height", "instrument", "group_name"]
+        descr_list = [d for d in variable["Attr"].keys() if "description" in d]
+        vattr_list = default_list + descr_list
+        for attr in vattr_list:
+            if attr in variable["Attr"]:
+                daily_dict["variables"][item]["attr"][attr] = variable["Attr"][attr]
+            else:
+                daily_dict["variables"][item]["attr"][attr] = "not defined"
         # now do the flag, this is the fraction of data with QC flag = 0 in the day
         daily_dict["variables"][item]["flag"] = numpy.zeros(nDays, dtype=numpy.float64)
         flag_2d = variable["Flag"].reshape(nDays, ntsInDay)
@@ -1508,7 +1569,7 @@ def L6_summary_co2andh2o_fluxes(ds, series_dict, daily_dict):
         fluxes_dict["variables"][item+"_flag"]["attr"] = {"units":"frac","format":"0.00"}
     return fluxes_dict
 
-def L6_summary_write_ncfile(nc_file, nc_group, data_dict):
+def L6_summary_write_ncfile(nc_obj, data_dict):
     """
     Purpose:
      Write the L6 summary statistics (daily, monthly, annual and cummulative)
@@ -1517,10 +1578,43 @@ def L6_summary_write_ncfile(nc_file, nc_group, data_dict):
     Author: PRI
     Date: January 2018
     """
-    # create the group in the netCDF file
-    nc_group = nc_file.createGroup(nc_group)
     # write the data to the group
-    pfp_io.nc_write_data(nc_group, data_dict)
+    nrecs = len(data_dict["variables"]["DateTime"]["data"])
+    # and give it dimensions of time, latitude and longitude
+    nc_obj.createDimension("time", nrecs)
+    nc_obj.createDimension("latitude", 1)
+    nc_obj.createDimension("longitude", 1)
+    dims = ("time", "latitude", "longitude")
+    # write the time variable to the netCDF object
+    nc_time_units = "seconds since 1970-01-01 00:00:00.0"
+    nc_time = netCDF4.date2num(data_dict["variables"]["DateTime"]["data"], nc_time_units, calendar="gregorian")
+    nc_var = nc_obj.createVariable("time", "d", ("time",))
+    nc_var[:] = nc_time
+    nc_var.setncattr("long_name", "time")
+    nc_var.setncattr("standard_name", "time")
+    nc_var.setncattr("units", nc_time_units)
+    nc_var.setncattr("calendar", "gregorian")
+    # write the latitude and longitude variables to the group
+    nc_var = nc_obj.createVariable("latitude", "d", ("latitude",))
+    nc_var[:] = float(data_dict["globalattributes"]["latitude"])
+    nc_var.setncattr('long_name', 'latitude')
+    nc_var.setncattr('standard_name', 'latitude')
+    nc_var.setncattr('units', 'degrees north')
+    nc_var = nc_obj.createVariable("longitude", "d", ("longitude",))
+    nc_var[:] = float(data_dict["globalattributes"]["longitude"])
+    nc_var.setncattr('long_name', 'longitude')
+    nc_var.setncattr('standard_name', 'longitude')
+    nc_var.setncattr('units', 'degrees east')
+    # get a list of variables to write to the netCDF file
+    labels = sorted([label for label in data_dict["variables"].keys() if label != "DateTime"])
+    # write the variables to the netCDF file object
+    for label in labels:
+        nc_var = nc_obj.createVariable(label, "d", dims)
+        nc_var[:, 0, 0] = data_dict["variables"][label]["data"].tolist()
+        for attr_key in data_dict["variables"][label]["attr"]:
+            if attr_key not in ["format"]:
+                attr_value = data_dict["variables"][label]["attr"][attr_key]
+                nc_var.setncattr(attr_key, attr_value)
     return
 
 def L6_summary_write_xlfile(xl_file,sheet_name,data_dict):
@@ -1588,6 +1682,15 @@ def L6_summary_monthly(ds,series_dict):
                 msg = "L6_summary_monthly: unrecognised operator"
                 logger.error(msg)
             monthly_dict["variables"][item]["attr"]["format"] = series_dict["monthly"][item]["format"]
+            # copy some of the variable attributes
+            default_list = ["long_name", "standard_name", "height", "instrument", "group_name"]
+            descr_list = [d for d in variable["Attr"].keys() if "description" in d]
+            vattr_list = default_list + descr_list
+            for attr in vattr_list:
+                if attr in variable["Attr"]:
+                    monthly_dict["variables"][item]["attr"][attr] = variable["Attr"][attr]
+                else:
+                    monthly_dict["variables"][item]["attr"][attr] = "not defined"
         start_date = end_date+dateutil.relativedelta.relativedelta(minutes=ts)
         end_date = start_date+dateutil.relativedelta.relativedelta(months=1)
         end_date = end_date-dateutil.relativedelta.relativedelta(minutes=ts)
@@ -1659,6 +1762,15 @@ def L6_summary_annual(ds, series_dict):
                 msg = "L6_summary_annual: unrecognised operator"
                 logger.error(msg)
             annual_dict["variables"][item]["attr"]["format"] = series_dict["annual"][item]["format"]
+            # copy some of the variable attributes
+            default_list = ["long_name", "standard_name", "height", "instrument", "group_name"]
+            descr_list = [d for d in variable["Attr"].keys() if "description" in d]
+            vattr_list = default_list + descr_list
+            for attr in vattr_list:
+                if attr in variable["Attr"]:
+                    annual_dict["variables"][item]["attr"][attr] = variable["Attr"][attr]
+                else:
+                    annual_dict["variables"][item]["attr"][attr] = "not defined"
     return annual_dict
 
 def L6_summary_cumulative(ds, series_dict):
@@ -1711,6 +1823,40 @@ def L6_summary_cumulative(ds, series_dict):
             cdyr["variables"][item]["data"] = numpy.ma.cumsum(variable["Data"])
             cdyr["variables"][item]["attr"]["format"] = series_dict["cumulative"][item]["format"]
             cdyr["variables"][item]["attr"]["units"] = cdyr["variables"][item]["attr"]["units"]+"/year"
+            # copy some of the variable attributes
+            default_list = ["long_name", "standard_name", "height", "instrument", "group_name"]
+            descr_list = [d for d in variable["Attr"].keys() if "description" in d]
+            vattr_list = default_list + descr_list
+            for attr in vattr_list:
+                if attr in variable["Attr"]:
+                    cdyr["variables"][item]["attr"][attr] = variable["Attr"][attr]
+                else:
+                    cdyr["variables"][item]["attr"][attr] = "not defined"
+    # cumulative total over all data
+    cdyr = cumulative_dict["all"] = {"globalattributes":{}, "variables":{}}
+    cdyr["globalattributes"] = copy.deepcopy(ds.globalattributes)
+    cdyr["variables"]["DateTime"] = {"data":dt, "flag":f0,
+                                     "attr":{"units":"Year", "format":"dd/mm/yyyy HH:MM"}}
+    for item in series_list:
+        cdyr["variables"][item] = {"data":[],"attr":{}}
+        variable = pfp_utils.GetVariable(ds, item)
+        if item in series_dict["lists"]["co2"]:
+            variable = pfp_utils.convert_units_func(ds, variable, "gC/m2")
+            cdyr["variables"][item]["attr"]["units"] = "gC/m2"
+        else:
+            cdyr["variables"][item]["attr"]["units"] = variable["Attr"]["units"]
+        cdyr["variables"][item]["data"] = numpy.ma.cumsum(variable["Data"])
+        cdyr["variables"][item]["attr"]["format"] = series_dict["cumulative"][item]["format"]
+        #cdyr["variables"][item]["attr"]["units"] = cdyr["variables"][item]["attr"]["units"]+"/year"
+        # copy some of the variable attributes
+        default_list = ["long_name", "standard_name", "height", "instrument", "group_name"]
+        descr_list = [d for d in variable["Attr"].keys() if "description" in d]
+        vattr_list = default_list + descr_list
+        for attr in vattr_list:
+            if attr in variable["Attr"]:
+                cdyr["variables"][item]["attr"][attr] = variable["Attr"][attr]
+            else:
+                cdyr["variables"][item]["attr"][attr] = "not defined"
     return cumulative_dict
 
 def ParseL6ControlFile(cf,ds):
@@ -1771,7 +1917,9 @@ def PartitionNEE(cf, ds, info):
     Author: PRI
     Date: August 2014
     """
-    if "gpp" not in info: return
+    if "gpp" not in info:
+        return
+    descr_level = "description_" + ds.globalattributes["nc_level"]
     # get the Fsd threshold
     opt = pfp_utils.get_keyvaluefromcf(cf,["Options"],"Fsd_threshold",default=10)
     Fsd_threshold = float(opt)
@@ -1812,7 +1960,9 @@ def PartitionNEE(cf, ds, info):
         # copy the attributes
         attr = ds.series[output_label]["Attr"]
         attr["units"] = NEE_attr["units"]
-        attr["long_name"] = "Gross Primary Productivity calculated as -1*"+NEE_label+"+"+ER_label
+        attr["long_name"] = "Gross primary productivity"
+        attr[descr_level] = "Calculated as -1*" + NEE_label + "+" + ER_label
+        attr["group_name"] = "flux"
 
 def rpGPP_createdict(cf,ds,series):
     """ Creates a dictionary in ds to hold information about calculating GPP."""

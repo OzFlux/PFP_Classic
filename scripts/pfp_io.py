@@ -38,6 +38,7 @@ class DataStructure(object):
         self.globalattributes["Functions"] = ""
         self.mergeserieslist = []
         self.averageserieslist = []
+        self.intermediate = []
         self.returncodes = {"value":0,"message":"OK"}
 
 def convert_v27tov28():
@@ -416,6 +417,9 @@ def reddyproc_write_csv(cf):
     Year,flag,attr = pfp_utils.GetSeries(ds,'Year',si=si,ei=ei)
     Ddd,flag,attr = pfp_utils.GetSeries(ds,'Ddd',si=si,ei=ei)
     Hhh,flag,attr = pfp_utils.GetSeries(ds,'Hdh',si=si,ei=ei)
+
+    Hdh = numpy.array([d.hour+d.minute/float(60) for d in dt[si:ei+1]])
+    
     # get the data
     data = OrderedDict()
     for label in cf["Variables"].keys():
@@ -479,7 +483,7 @@ def reddyproc_write_csv(cf):
     writer.writerow(units_list)
     # now write the data
     for i in range(len(Year)):
-        data_list = ['%d'%(Year[i]),'%d'%(int(Ddd[i])),'%.1f'%(Hhh[i])]
+        data_list = ['%d'%(Year[i]),'%d'%(int(Ddd[i])),'%.1f'%(Hdh[i])]
         for series in series_list:
             strfmt = data[series]["fmt"]
             if "d" in strfmt:
@@ -1294,7 +1298,7 @@ def nc_concatenate(cf):
     # loop over the data series and calculate fraction of data present
     opt = pfp_utils.get_keyvaluefromcf(cf,["Options"],"Truncate",default="Yes")
     if opt.lower() == "yes":
-        default_list = ["Ah","Cc","Fa","Fg","Fld","Flu","Fn","Fsd","Fsu","ps","Sws","Ta","Ts","Ws","Wd","Precip"]
+        default_list = ["Ah","Fa","Fg","Fld","Flu","Fn","Fsd","Fsu","ps","Sws","Ta","Ts","Ws","Wd","Precip"]
         series_list = pfp_utils.get_keyvaluefromcf(cf,["Options"],"SeriesToCheck",default=default_list)
         if isinstance(series_list, basestring):
             series_list = ast.literal_eval(series_list)
@@ -1423,17 +1427,10 @@ def nc_concatenate(cf):
     ds.globalattributes["nc_nrecs"] = len(ds.series["DateTime"]["Data"])
     dt = ds.series["DateTime"]["Data"]
     cond_idx = numpy.zeros(len(dt))
-    #series_list = ds.series.keys()
-    ## remove non-data series
-    #for item in ["DateTime","DateTime_UTC","xlDateTime",
-                 #"Year","Month","Day","Hour","Minute","Second",
-                 #"Hdh","Ddd","time"]:
-        #if item in series_list: series_list.remove(item)
-
     # loop over the data series and calculate fraction of data present
     opt = pfp_utils.get_keyvaluefromcf(cf,["Options"],"Truncate",default="Yes")
     if opt.lower() == "yes":
-        default_list = ["Ah","Cc","Fa","Fg","Fld","Flu","Fn","Fsd","Fsu","ps","Sws","Ta","Ts","Ws","Wd","Precip"]
+        default_list = ["Ah","Fa","Fg","Fld","Flu","Fn","Fsd","Fsu","ps","Sws","Ta","Ts","Ws","Wd","Precip"]
         series_list = pfp_utils.get_keyvaluefromcf(cf,["Options"],"SeriesToCheck",default=default_list)
         if isinstance(series_list, basestring):
             series_list = ast.literal_eval(series_list)
@@ -1461,15 +1458,12 @@ def nc_concatenate(cf):
                 ds.series[item]["Flag"] = ds.series[item]["Flag"][:ei+1]
         # update the number of records
         ds.globalattributes["nc_nrecs"] = len(ds.series["DateTime"]["Data"])
-
     # now sort out any time gaps
     if pfp_utils.CheckTimeStep(ds):
         fixtimestepmethod = pfp_utils.get_keyvaluefromcf(cf,["Options"],"FixTimeStepMethod",default="round")
         pfp_utils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
-        # update the Excel datetime from the Python datetime
-        pfp_utils.get_xldatefromdatetime(ds)
-        # update the Year, Month, Day etc from the Python datetime
-        pfp_utils.get_ymdhmsfromdatetime(ds)
+    # update the Year, Month, Day etc from the Python datetime
+    pfp_utils.get_ymdhmsfromdatetime(ds)
     # if requested, fill any small gaps by interpolation
     # get a list of series in ds excluding the QC flags
     series_list = [item for item in ds.series.keys() if "_QCFlag" not in item]
@@ -1492,8 +1486,8 @@ def nc_concatenate(cf):
     # check units of Fc and convert if necessary
     Fc_list = [label for label in ds.series.keys() if label[0:2] == "Fc"]
     pfp_utils.CheckUnits(ds, Fc_list, "umol/m2/s", convert_units=True)
-    # re-calculate the synthetic Fsd
-    pfp_ts.get_synthetic_fsd(ds)
+    ## re-calculate the synthetic Fsd
+    #pfp_ts.get_synthetic_fsd(ds)
     # re-apply the quality control checks (range, diurnal and rules)
     pfp_ck.do_qcchecks(cf,ds)
     # update the global attributes for this level
@@ -1507,6 +1501,8 @@ def nc_concatenate(cf):
     # update the coverage statistics
     pfp_utils.get_coverage_individual(ds)
     pfp_utils.get_coverage_groups(ds)
+    # remove intermediate variables
+    pfp_ts.RemoveIntermediateSeries(cf, ds)
     # write the netCDF file
     outFileName = pfp_utils.get_keyvaluefromcf(cf,["Files","Out"],"ncFileName",default="out.nc")
     logger.info(' Writing data to '+os.path.split(outFileName)[1])
@@ -1698,19 +1694,19 @@ def nc_read_series(ncFullName,checktimestep=True,fixtimestepmethod="round"):
     netCDF4.default_encoding = 'latin-1'
     ds = DataStructure()
     # check to see if the requested file exists, return empty ds if it doesn't
-    if ncFullName[0:4]!="http":
-        if not pfp_utils.file_exists(ncFullName,mode="quiet"):
-            logger.error(' netCDF file '+ncFullName+' not found')
+    if ncFullName[0:4] != "http":
+        if not pfp_utils.file_exists(ncFullName, mode="quiet"):
+            logger.error(" netCDF file " + ncFullName + " not found")
             raise Exception("nc_read_series: file not found")
     # file probably exists, so let's read it
-    ncFile = netCDF4.Dataset(ncFullName,'r')
+    ncFile = netCDF4.Dataset(ncFullName, "r")
     # disable automatic masking of data when valid_range specified
     ncFile.set_auto_mask(False)
     # now deal with the global attributes
     gattrlist = ncFile.ncattrs()
-    if len(gattrlist)!=0:
+    if len(gattrlist) != 0:
         for gattr in gattrlist:
-            ds.globalattributes[gattr] = getattr(ncFile,gattr)
+            ds.globalattributes[gattr] = getattr(ncFile, gattr)
     # get a list of the variables in the netCDF file (not their QC flags)
     varlist = [x for x in ncFile.variables.keys() if "_QCFlag" not in x]
     for ThisOne in varlist:
@@ -1720,15 +1716,11 @@ def nc_read_series(ncFullName,checktimestep=True,fixtimestepmethod="round"):
         # create the series in the data structure
         ds.series[unicode(ThisOne)] = {}
         # get the data and the QC flag
-        data,flag,attr = nc_read_var(ncFile,ThisOne)
+        data, flag, attr = nc_read_var(ncFile, ThisOne)
         ds.series[ThisOne]["Data"] = data
         ds.series[ThisOne]["Flag"] = flag
         ds.series[ThisOne]["Attr"] = attr
     ncFile.close()
-    # make sure all values of -9999 have non-zero QC flag
-    # NOTE: the following was a quick and dirty fix for something a long time ago
-    #       and needs to be retired
-    #pfp_utils.CheckQCFlags(ds)
     # get a series of Python datetime objects
     if "time" in ds.series.keys():
         time,f,a = pfp_utils.GetSeries(ds,"time")
@@ -1736,18 +1728,17 @@ def nc_read_series(ncFullName,checktimestep=True,fixtimestepmethod="round"):
     else:
         pfp_utils.get_datetimefromymdhms(ds)
     # round the Python datetime to the nearest second
-    pfp_utils.round_datetime(ds,mode="nearest_second")
+    pfp_utils.round_datetime(ds, mode="nearest_second")
     # check the time step and fix it required
     if checktimestep:
         if pfp_utils.CheckTimeStep(ds):
-            pfp_utils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
-            # update the Excel datetime from the Python datetime
-            pfp_utils.get_xldatefromdatetime(ds)
-            # update the Year, Month, Day etc from the Python datetime
-            pfp_utils.get_ymdhmsfromdatetime(ds)
+            pfp_utils.FixTimeStep(ds, fixtimestepmethod=fixtimestepmethod)
+    # get the Year, Month, Day etc from the Python datetime
+    pfp_utils.get_ymdhmsfromdatetime(ds)
     # tell the user when the data starts and ends
     ldt = ds.series["DateTime"]["Data"]
-    msg = " Got data from "+ldt[0].strftime("%Y-%m-%d %H:%M:%S")+" to "+ldt[-1].strftime("%Y-%m-%d %H:%M:%S")
+    msg = " Got data from " + ldt[0].strftime("%Y-%m-%d %H:%M:%S")
+    msg += " to " + ldt[-1].strftime("%Y-%m-%d %H:%M:%S")
     logger.info(msg)
     return ds
 
@@ -1945,7 +1936,6 @@ def nc_write_data(nc_obj, data_dict):
         for attr_key in data_dict["variables"][label]["attr"]:
             attr_value = data_dict["variables"][label]["attr"][attr_key]
             nc_var.setncattr(attr_key, attr_value)
-
     return
 
 def nc_write_globalattributes(nc_file, ds, flag_defs=True):
@@ -2058,8 +2048,9 @@ def nc_write_series(ncFile, ds, outputlist=None, ndims=3):
     datetimelist = ['xlDateTime','Year','Month','Day','Hour','Minute','Second','Hdh','Ddd']
     # and write them to the netCDF file
     for ThisOne in sorted(datetimelist):
-        if ThisOne in ds.series.keys(): nc_write_var(ncFile,ds,ThisOne,dims)
-        if ThisOne in outputlist: outputlist.remove(ThisOne)
+        #if ThisOne in ds.series.keys(): nc_write_var(ncFile,ds,ThisOne,dims)
+        if ThisOne in outputlist:
+            outputlist.remove(ThisOne)
     # write everything else to the netCDF file
     for ThisOne in sorted(outputlist):
         nc_write_var(ncFile,ds,ThisOne,dims)
