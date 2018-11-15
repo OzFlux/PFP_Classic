@@ -292,7 +292,7 @@ def specificheatcapacitydryair(Tv):
     '''
     Specific heat capacity of air at constant pressure.
     USEAGE:
-     cpd = mf.cpd(Tv)
+     cpd = pfp_mf.cpd(Tv)
     INPUT:
      Tv - virtual temperature (from sonic anemometer), C
     OUTPUT:
@@ -307,7 +307,7 @@ def specificheatcapacitywatervapour(Ta, Ah):
     '''
     Specific heat capacity of water vapour at constant pressure.
     USEAGE:
-     cpv = mf.cpv(Ta,Ah)
+     cpv = pfp_mf.cpv(Ta,Ah)
     INPUT:
      Ta - air temperature, C
      Ah - absolute humidity, %

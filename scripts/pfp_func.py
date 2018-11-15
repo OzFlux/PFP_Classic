@@ -5,7 +5,7 @@ import logging
 import dateutil
 import numpy
 # PFP modules
-import meteorologicalfunctions as mf
+import meteorologicalfunctions as pfp_mf
 import pfp_utils
 
 logger = logging.getLogger("pfp_log")
@@ -38,7 +38,7 @@ def AhfromRH(ds,Ah_out,RH_in,Ta_in):
         return 0
     RH_data,RH_flag,RH_attr = pfp_utils.GetSeriesasMA(ds,RH_in)
     Ta_data,Ta_flag,Ta_attr = pfp_utils.GetSeriesasMA(ds,Ta_in)
-    Ah_data = mf.absolutehumidityfromRH(Ta_data,RH_data)
+    Ah_data = pfp_mf.absolutehumidityfromRH(Ta_data,RH_data)
     Ah_attr = pfp_utils.MakeAttributeDictionary(long_name="Absolute humidity calculated from "+RH_in+" and "+Ta_in,
                                               height=RH_attr["height"],
                                               units="g/m3")
@@ -75,7 +75,7 @@ def AhfromMR(ds,Ah_out,MR_in,Ta_in,ps_in):
     MR_data,MR_flag,MR_attr = pfp_utils.GetSeriesasMA(ds,MR_in)
     Ta_data,Ta_flag,Ta_attr = pfp_utils.GetSeriesasMA(ds,Ta_in)
     ps_data,ps_flag,ps_attr = pfp_utils.GetSeriesasMA(ds,ps_in)
-    Ah_data = mf.h2o_gpm3frommmolpmol(MR_data,Ta_data,ps_data)
+    Ah_data = pfp_mf.h2o_gpm3frommmolpmol(MR_data,Ta_data,ps_data)
     long_name = "Absolute humidity calculated from "+MR_in+", "+Ta_in+" and "+ps_in
     Ah_attr = pfp_utils.MakeAttributeDictionary(long_name=long_name,
                                               height=MR_attr["height"],
@@ -93,6 +93,16 @@ def ConvertK2C(ds, T_in, T_out):
     Author: PRI
     Date: February 2018
     """
+    if T_in not in ds.series.keys():
+        msg = " ConvertK2C: variable " + T_in + " not found, skipping ..."
+        logger.warning(msg)
+        return 0
+    if "<" in T_out or ">" in T_out:
+        logger.warning(" ***")
+        msg = " *** " + T_in + ": illegal name (" + T_out + ") in function, skipping ..."
+        logger.warning(msg)
+        logger.warning(" ***")
+        return 0
     var_in = pfp_utils.GetVariable(ds, T_in)
     var_out = pfp_utils.convert_units_func(ds, var_in, "C", mode="quiet")
     var_out["Label"] = T_out
@@ -105,6 +115,21 @@ def ConvertPa2kPa(ds, ps_in, ps_out):
      Function to convert pressure from Pa to kPa.
     Usage:
      pfp_func.ConvertPa2kPa(ds, ps_in, ps_out)
+    Author: PRI
+    Date: February 2018
+    """
+    var_in = pfp_utils.GetVariable(ds, ps_in)
+    var_out = pfp_utils.convert_units_func(ds, var_in, "kPa", mode="quiet")
+    var_out["Label"] = ps_out
+    pfp_utils.CreateVariable(ds, var_out)
+    return 1
+
+def ConverthPa2kPa(ds, ps_in, ps_out):
+    """
+    Purpose:
+     Function to convert pressure from hPa (mb) to kPa.
+    Usage:
+     pfp_func.ConverthPa2kPa(ds, ps_in, ps_out)
     Author: PRI
     Date: February 2018
     """
@@ -178,22 +203,33 @@ def DateTimeFromTimeStamp(ds,TimeStamp_in,fmt=""):
     ds.globalattributes["nc_nrecs"] = nRecs
     return 1
 
-def DateTimeFromDateAndTimeString(ds,DateString_in,TimeString_in):
-    if DateString_in not in ds.series.keys():
-        msg = " Requested date series "+DateString_in+" not found"
-        logger.error(msg)
+def DateTimeFromExcelDateAndTime(ds, xlDate, xlTime):
+    """ Get Datetime from Excel date and time fields."""
+    xldate = ds.series[xlDate]
+    xltime = ds.series[xlTime]
+    nrecs = len(xldate["Data"])
+    xldatetime = pfp_utils.create_empty_variable("xlDateTime", nrecs)
+    xldatetime["Data"] = xldate["Data"] + xltime["Data"]
+    xldatetime["Attr"]["long_name"] = "Date/time in Excel format"
+    xldatetime["Attr"]["units"] = "days since 1899-12-31 00:00:00"
+    pfp_utils.CreateVariable(ds, xldatetime)
+    pfp_utils.get_datetimefromxldate(ds)
+    return 1
+
+def DateTimeFromDateAndTimeString(ds, Date, Time):
+    if Date not in ds.series.keys():
+        logger.error(" Requested date series "+Date+" not found")
         return 0
-    if TimeString_in not in ds.series.keys():
-        msg = " Requested time series "+TimeString_in+" not found"
-        logger.error(msg)
+    if Time not in ds.series.keys():
+        logger.error(" Requested time series "+Time+" not found")
         return 0
-    DateString = ds.series[DateString_in]["Data"]
-    TimeString = ds.series[TimeString_in]["Data"]
+    DateString = ds.series[Date]["Data"]
+    TimeString = ds.series[Time]["Data"]
     # guard against empty fields in what we assume is the datetime
     idx = [i for i in range(len(DateString)) if len(str(DateString[i]))>0]
     dt = [dateutil.parser.parse(str(DateString[i])+" "+str(TimeString[i])) for i in idx]
     # we have finished with the date and time strings so delete them from the data structure
-    del ds.series[DateString_in],ds.series[TimeString_in]
+    del ds.series[Date], ds.series[Time]
     nRecs = len(dt)
     ds.series["DateTime"] = {}
     ds.series["DateTime"]["Data"] = dt
@@ -208,6 +244,34 @@ def DateTimeFromDateAndTimeString(ds,DateString_in,TimeString_in):
         ds.series[item]["Data"] = ds.series[item]["Data"][idx]
         ds.series[item]["Flag"] = ds.series[item]["Flag"][idx]
     ds.globalattributes["nc_nrecs"] = nRecs
+    return 1
+
+def MRfromAh(ds, MR_out, Ah_in, Ta_in, ps_in):
+    """
+    Purpose:
+     Calculate H2O mixing ratio from absolute humidity (Ah).
+    """
+    nRecs = int(ds.globalattributes["nc_nrecs"])
+    zeros = numpy.zeros(nRecs,dtype=numpy.int32)
+    ones = numpy.ones(nRecs,dtype=numpy.int32)
+    for item in [Ah_in, Ta_in, ps_in]:
+        if item not in ds.series.keys():
+            msg = " MRfromAh: Requested series "+item+" not found, "+MR_out+" not calculated"
+            logger.error(msg)
+            return 0
+    if MR_out in ds.series.keys():
+        msg = " MRfromAh: Output series "+MR_out+" already exists, skipping ..."
+        logger.error(msg)
+        return 0
+    Ah_data,Ah_flag,Ah_attr = pfp_utils.GetSeriesasMA(ds, Ah_in)
+    Ta_data,Ta_flag,Ta_attr = pfp_utils.GetSeriesasMA(ds, Ta_in)
+    ps_data,ps_flag,ps_attr = pfp_utils.GetSeriesasMA(ds, ps_in)
+    MR_data = pfp_mf.h2o_mmolpmolfromgpm3(Ah_data, Ta_data, ps_data)
+    MR_attr = pfp_utils.MakeAttributeDictionary(long_name="H2O mixing ratio calculated from "+Ah_in+", "+Ta_in+" and "+ps_in,
+                                              height=Ah_attr["height"],
+                                              units="mmol/mol")
+    flag = numpy.where(numpy.ma.getmaskarray(MR_data)==True,ones,zeros)
+    pfp_utils.CreateSeries(ds, MR_out, MR_data, flag, MR_attr)
     return 1
 
 def MRfromRH(ds, MR_out, RH_in, Ta_in, ps_in):
@@ -229,9 +293,9 @@ def MRfromRH(ds, MR_out, RH_in, Ta_in, ps_in):
         return 0
     RH_data,RH_flag,RH_attr = pfp_utils.GetSeriesasMA(ds, RH_in)
     Ta_data,Ta_flag,Ta_attr = pfp_utils.GetSeriesasMA(ds, Ta_in)
-    Ah_data = mf.absolutehumidityfromRH(Ta_data, RH_data)
+    Ah_data = pfp_mf.absolutehumidityfromRH(Ta_data, RH_data)
     ps_data,ps_flag,ps_attr = pfp_utils.GetSeriesasMA(ds, ps_in)
-    MR_data = mf.h2o_mmolpmolfromgpm3(Ah_data, Ta_data, ps_data)
+    MR_data = pfp_mf.h2o_mmolpmolfromgpm3(Ah_data, Ta_data, ps_data)
     MR_attr = pfp_utils.MakeAttributeDictionary(long_name="H2O mixing ratio calculated from "+RH_in+", "+Ta_in+" and "+ps_in,
                                               height=RH_attr["height"],
                                               units="mmol/mol")
