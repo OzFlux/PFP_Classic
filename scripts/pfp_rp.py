@@ -1179,7 +1179,12 @@ def L6_summary(cf, ds):
     # cumulative totals
     cumulative_dict = L6_summary_cumulative(ds, series_dict)
     for year in cumulative_dict.keys():
-        L6_summary_write_xlfile(xl_file, "Cummulative("+str(year)+")", cumulative_dict[str(year)])
+        nrecs = len(cumulative_dict[year]["variables"]["DateTime"]["data"])
+        if nrecs < 65530:
+            L6_summary_write_xlfile(xl_file, "Cummulative("+str(year)+")", cumulative_dict[str(year)])
+        else:
+            msg = "L6 cumulative: too many rows for .xls workbook, skipping "+year
+            logger.warning(msg)
         nc_group = nc_summary.createGroup("Cummulative_"+str(year))
         L6_summary_write_ncfile(nc_group, cumulative_dict[str(year)])
     # separate cumulative file
@@ -1288,7 +1293,7 @@ def L6_summary_plotcumulative(cf, ds, cumulative_dict):
     ts = int(ds.globalattributes["time_step"])
     # cumulative plots
     color_list = ["blue","red","green","yellow","magenta","black","cyan","brown"]
-    year_list = cumulative_dict.keys()
+    year_list = [y for y in cumulative_dict.keys() if y not in ["all"]]
     year_list.sort()
     cdy0 = cumulative_dict[year_list[0]]
     type_list = []
@@ -1847,7 +1852,6 @@ def L6_summary_cumulative(ds, series_dict):
             cdyr["variables"][item]["attr"]["units"] = variable["Attr"]["units"]
         cdyr["variables"][item]["data"] = numpy.ma.cumsum(variable["Data"])
         cdyr["variables"][item]["attr"]["format"] = series_dict["cumulative"][item]["format"]
-        #cdyr["variables"][item]["attr"]["units"] = cdyr["variables"][item]["attr"]["units"]+"/year"
         # copy some of the variable attributes
         default_list = ["long_name", "standard_name", "height", "instrument", "group_name"]
         descr_list = [d for d in variable["Attr"].keys() if "description" in d]

@@ -305,18 +305,18 @@ def gfSOLO_main(dsa,dsb,solo_info,output_list=[]):
     for output in output_list:
         # get the target series label
         series = dsb.solo[output]["label_tower"]
-        # clean up the target series if required
-        variable = pfp_utils.GetVariable(dsb, series)
-        pfp_ck.UpdateVariableAttributes_QC(cf, variable)
-        pfp_ck.ApplyQCChecks(variable)
-        pfp_utils.CreateVariable(dsb, variable)
-        # check to see if we are gap filling L5 or L4
-        if dsb.globalattributes["nc_level"].lower()=="l4":
-            for driver in dsb.solo[output]["drivers"]:
-                for mlist in dsb.merge.keys():
-                    if driver in dsb.merge[mlist]:
-                        srclist = dsb.merge[mlist][driver]["source"]
-                pfp_ts.do_mergeseries(dsb,driver,srclist,mode="quiet")
+        ## clean up the target series if required
+        #variable = pfp_utils.GetVariable(dsb, series)
+        #pfp_ck.UpdateVariableAttributes_QC(cf, variable)
+        #pfp_ck.ApplyQCChecks(variable)
+        #pfp_utils.CreateVariable(dsb, variable)
+        ## check to see if we are gap filling L5 or L4
+        #if dsb.globalattributes["nc_level"].lower()=="l4":
+            #for driver in dsb.solo[output]["drivers"]:
+                #for mlist in dsb.merge.keys():
+                    #if driver in dsb.merge[mlist]:
+                        #srclist = dsb.merge[mlist][driver]["source"]
+                #pfp_ts.do_mergeseries(dsb,driver,srclist,mode="quiet")
         dsb.solo[output]["results"]["startdate"].append(ldt[si])
         dsb.solo[output]["results"]["enddate"].append(ldt[ei])
         d,f,a = pfp_utils.GetSeriesasMA(dsb,series,si=si,ei=ei)
