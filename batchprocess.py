@@ -16,9 +16,8 @@ import pfp_utils
 
 t = time.localtime()
 rundatetime = datetime.datetime(t[0],t[1],t[2],t[3],t[4],t[5]).strftime("%Y%m%d%H%M")
-log_filename = 'batchprocess_'+rundatetime+'.log'
-
-logger = pfp_log.init_logger(logger_name="pfp_log", file_handler=log_filename)
+log_file_name = 'batchprocess_'+rundatetime+'.log'
+logger = pfp_log.init_logger(logger_name="pfp_log", log_file_name=log_file_name)
 
 # get the batch processing control file
 if len(sys.argv)==1:
