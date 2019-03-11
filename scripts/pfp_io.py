@@ -1301,10 +1301,14 @@ def nc_concatenate(cf):
     # loop over the data series and calculate fraction of data present
     opt = pfp_utils.get_keyvaluefromcf(cf,["Options"],"Truncate",default="Yes")
     if opt.lower() == "yes":
-        default_list = ["Ah","Cc","Fa","Fg","Fld","Flu","Fn","Fsd","Fsu","ps","Sws","Ta","Ts","Ws","Wd","Precip"]
+        default_list = ["Ah","Cc","CO2","Fa","Fg","Fld","Flu","Fn","Fsd","Fsu","ps","Sws","Ta","Ts","Ws","Wd","Precip"]
         series_list = pfp_utils.get_keyvaluefromcf(cf,["Options"],"SeriesToCheck",default=default_list)
         if isinstance(series_list, basestring):
             series_list = ast.literal_eval(series_list)
+        #remove series labels that are not in ds_n
+        for label in series_list:
+            if label not in ds_n.series.keys():
+                series_list.remove(label)
         for item in series_list:
             data,flag,attr = pfp_utils.GetSeriesasMA(ds_n,item)
             idx = numpy.ma.where(data.mask==False)
@@ -1441,10 +1445,14 @@ def nc_concatenate(cf):
     # loop over the data series and calculate fraction of data present
     opt = pfp_utils.get_keyvaluefromcf(cf,["Options"],"Truncate",default="Yes")
     if opt.lower() == "yes":
-        default_list = ["Ah","Cc","Fa","Fg","Fld","Flu","Fn","Fsd","Fsu","ps","Sws","Ta","Ts","Ws","Wd","Precip"]
+        default_list = ["Ah","Cc","CO2","Fa","Fg","Fld","Flu","Fn","Fsd","Fsu","ps","Sws","Ta","Ts","Ws","Wd","Precip"]
         series_list = pfp_utils.get_keyvaluefromcf(cf,["Options"],"SeriesToCheck",default=default_list)
         if isinstance(series_list, basestring):
             series_list = ast.literal_eval(series_list)
+        #remove series labels that are not in ds_n
+        for label in series_list:
+            if label not in ds_n.series.keys():
+                series_list.remove(label)
         for item in series_list:
             data,flag,attr = pfp_utils.GetSeriesasMA(ds,item)
             idx = numpy.where(numpy.ma.getmaskarray(data)==False)
