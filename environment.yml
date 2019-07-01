@@ -1,4 +1,4 @@
-name: pfp
+name: pfp_classic
 dependencies:
   - python=2.7
   - configobj
